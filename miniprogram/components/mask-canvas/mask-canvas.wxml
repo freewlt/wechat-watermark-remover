@@ -1,0 +1,20 @@
+<!--components/mask-canvas/mask-canvas.wxml-->
+<view class="mask-canvas-wrapper" style="width: {{width}}rpx; height: {{height}}rpx;">
+  <canvas 
+    type="2d" 
+    id="mask-layer"
+    class="mask-layer"
+    style="width: {{width}}rpx; height: {{height}}rpx;"
+    bindtouchstart="onTouchStart"
+    bindtouchmove="onTouchMove"
+    bindtouchend="onTouchEnd"
+    bindtouchcancel="onTouchCancel"
+  />
+  
+  <!-- 画笔光标（可选） -->
+  <view 
+    class="brush-cursor" 
+    wx:if="{{showCursor}}"
+    style="width: {{brushSize}}rpx; height: {{brushSize}}rpx; left: {{cursorX}}rpx; top: {{cursorY}}rpx;"
+  />
+</view>

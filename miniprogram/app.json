@@ -1,11 +1,16 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/home/home",
+    "pages/pic/pic",
+    "pages/video/video",
+    "pages/profile/profile",
+    "pages/index/index",
+    "components/mask-canvas/mask-canvas"
   ],
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#fff",
-    "navigationBarTitleText": "智能去水印",
+    "navigationBarTitleText": "智能内容疏解",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f5f7fa"
   },

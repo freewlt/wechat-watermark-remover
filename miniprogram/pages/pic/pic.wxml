@@ -1,0 +1,147 @@
+<!--pages/pic/pic.wxml-->
+<view class="container">
+  <!-- 步骤指示器 -->
+  <view class="step-bar">
+    <view class="step {{step >= 1 ? 'active' : ''}}">
+      <view class="step-num">1</view>
+      <text>选择图片</text>
+    </view>
+    <view class="step-line {{step >= 2 ? 'active' : ''}}"></view>
+    <view class="step {{step >= 2 ? 'active' : ''}}">
+      <view class="step-num">2</view>
+      <text>涂抹水印</text>
+    </view>
+    <view class="step-line {{step >= 3 ? 'active' : ''}}"></view>
+    <view class="step {{step >= 3 ? 'active' : ''}}">
+      <view class="step-num">3</view>
+      <text>处理完成</text>
+    </view>
+  </view>
+
+  <!-- 步骤1: 选择图片 -->
+  <view class="step-content" wx:if="{{step === 1}}">
+    <view class="upload-area" bindtap="chooseImage">
+      <view class="upload-placeholder">
+        <text class="upload-icon">+</text>
+        <text class="upload-text">点击选择图片</text>
+        <text class="upload-tip">支持 JPG、PNG 格式</text>
+      </view>
+    </view>
+    
+    <view class="quick-actions">
+      <button class="quick-btn" bindtap="chooseImage" data-source="camera">
+        <text>📷 拍照</text>
+      </button>
+      <button class="quick-btn" bindtap="chooseImage" data-source="album">
+        <text>🖼️ 从相册选</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 步骤2: 涂抹编辑 -->
+  <view class="step-content" wx:if="{{step === 2}}">
+    <view class="canvas-container">
+      <canvas 
+        type="2d" 
+        id="edit-canvas"
+        class="edit-canvas"
+        bindtouchstart="onTouchStart"
+        bindtouchmove="onTouchMove"
+        bindtouchend="onTouchEnd"
+      />
+      
+      <!-- 涂抹预览层 -->
+      <canvas 
+        type="2d" 
+        id="mask-canvas"
+        class="mask-canvas"
+        style="opacity: {{showMask ? 0.5 : 0}}"
+      />
+    </view>
+
+    <!-- 工具栏 -->
+    <view class="toolbar">
+      <view class="tool-group">
+        <text class="tool-label">画笔大小</text>
+        <slider 
+          class="brush-slider"
+          min="10" 
+          max="80" 
+          value="{{brushSize}}" 
+          block-size="24"
+          activeColor="#07c160"
+          bindchange="onBrushSizeChange"
+        />
+        <text class="brush-value">{{brushSize}}px</text>
+      </view>
+      
+      <view class="tool-actions">
+        <button class="tool-btn" bindtap="undo" disabled="{{undoStack.length === 0}}">
+          <text>↩️ 撤销</text>
+        </button>
+        <button class="tool-btn" bindtap="clearMask">
+          <text>🗑️ 清空</text>
+        </button>
+        <button class="tool-btn" bindtap="toggleMask">
+          <text>{{showMask ? '🙈' : '🙉'}} 预览</text>
+        </button>
+      </view>
+    </view>
+
+    <view class="action-bar">
+      <button class="btn btn-secondary" bindtap="resetImage">重新选择</button>
+      <button class="btn btn-primary" bindtap="processImage" disabled="{{!hasMask}}">
+        {{processing ? '处理中...' : '开始处理'}}
+      </button>
+    </view>
+  </view>
+
+  <!-- 步骤3: 结果展示 -->
+  <view class="step-content" wx:if="{{step === 3}}">
+    <view class="result-container">
+      <!-- 对比模式 -->
+      <view class="compare-wrapper" wx:if="{{compareMode}}">
+        <view class="compare-image original">
+          <image src="{{originalImage}}" mode="widthFix"/>
+          <text class="compare-label">原图</text>
+        </view>
+        <view class="compare-image result">
+          <image src="{{resultImage}}" mode="widthFix"/>
+          <text class="compare-label">处理后</text>
+        </view>
+      </view>
+      
+      <!-- 单图模式 -->
+      <view class="single-result" wx:else>
+        <image src="{{resultImage}}" mode="widthFix" bindtap="previewImage"/>
+      </view>
+
+      <view class="view-toggle" bindtap="toggleCompare">
+        <text>{{compareMode ? '👁️ 单图查看' : '👀 对比查看'}}</text>
+      </view>
+    </view>
+
+    <view class="result-actions">
+      <button class="btn btn-secondary" bindtap="backToEdit">返回编辑</button>
+      <button class="btn btn-primary" bindtap="saveImage">保存到相册</button>
+      <button class="btn btn-outline" bindtap="processNew">处理新图片</button>
+    </view>
+  </view>
+
+  <!-- 使用提示 -->
+  <view class="help-card" wx:if="{{step === 1}}">
+    <view class="help-title">💡 如何使用</view>
+    <view class="help-step">
+      <text class="num">1</text>
+      <text>上传需要处理的图片</text>
+    </view>
+    <view class="help-step">
+      <text class="num">2</text>
+      <text>用手指涂抹水印区域（红色标记）</text>
+    </view>
+    <view class="help-step">
+      <text class="num">3</text>
+      <text>点击处理，AI自动修复背景</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,86 @@
+/* pages/home/home.wxss */
+.container {
+  padding: 40rpx;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 60rpx;
+}
+
+.title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.subtitle {
+  display: block;
+  font-size: 28rpx;
+  color: #999;
+  margin-top: 10rpx;
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 30rpx;
+}
+
+.card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+  transition: transform 0.2s;
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+.icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+.name {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.desc {
+  font-size: 26rpx;
+  color: #999;
+  margin-top: 10rpx;
+}
+
+.notice {
+  margin-top: 60rpx;
+  padding: 30rpx;
+  background: #fffbeb;
+  border-radius: 16rpx;
+  border: 1rpx solid #fcd34d;
+}
+
+.notice-title {
+  display: block;
+  font-size: 28rpx;
+  color: #d97706;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+
+.notice-text {
+  display: block;
+  font-size: 24rpx;
+  color: #b45309;
+  line-height: 1.6;
+}

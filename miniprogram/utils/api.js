@@ -1,5 +1,26 @@
 const API_BASE = 'https://your-api-domain.com'
 
+const request = (url, method = 'GET', data = {}) => {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}${url}`,
+      method,
+      data,
+      header: {
+        'Content-Type': 'application/json'
+      },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data.code === 0) {
+          resolve(res.data);
+        } else {
+          reject(res.data);
+        }
+      },
+      fail: reject
+    });
+  });
+};
+
 module.exports = {
   // 上传图片
   uploadImage(filePath) {
@@ -28,5 +49,24 @@ module.exports = {
         fail: reject
       })
     })
-  }
+  },
+
+   // 视频解析
+   parseVideo: (url) => request('/api/parse/video', 'POST', { url }),
+  
+   // 图片去水印
+   removeWatermark: (imageUrl, maskData) => request('/api/image/remove', 'POST', { 
+     imageUrl, 
+     maskData 
+   }),
+   
+   // 获取用户信息
+   getUserInfo: () => request('/api/user/info'),
+   
+   // 获取使用次数
+   getUsage: () => request('/api/user/usage'),
+   
+   // 广告回调
+   adReward: () => request('/api/user/reward', 'POST')
 }
+

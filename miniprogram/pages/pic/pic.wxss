@@ -1,0 +1,292 @@
+/* pages/pic/pic.wxss */
+.container {
+  padding: 20rpx 30rpx;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* 步骤条 */
+.step-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.step-num {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #e5e5e5;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.step.active .step-num {
+  background: var(--primary);
+  color: #fff;
+}
+
+.step text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.step.active text {
+  color: var(--primary);
+}
+
+.step-line {
+  width: 80rpx;
+  height: 2rpx;
+  background: #e5e5e5;
+  margin: 0 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.step-line.active {
+  background: var(--primary);
+}
+
+/* 上传区域 */
+.upload-area {
+  height: 600rpx;
+  background: #f7f8fa;
+  border: 4rpx dashed #ddd;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30rpx;
+}
+
+.upload-placeholder {
+  text-align: center;
+}
+
+.upload-icon {
+  font-size: 100rpx;
+  color: #ccc;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.upload-text {
+  font-size: 32rpx;
+  color: #666;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.upload-tip {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.quick-btn {
+  flex: 1;
+  height: 88rpx;
+  background: #fff;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+/* 画布区域 */
+.canvas-container {
+  position: relative;
+  width: 100%;
+  height: 700rpx;
+  background: #f0f0f0;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 20rpx;
+}
+
+.edit-canvas, .mask-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 工具栏 */
+.toolbar {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.tool-label {
+  font-size: 26rpx;
+  color: #666;
+  margin-right: 20rpx;
+  white-space: nowrap;
+}
+
+.brush-slider {
+  flex: 1;
+}
+
+.brush-value {
+  font-size: 24rpx;
+  color: #999;
+  margin-left: 20rpx;
+  min-width: 60rpx;
+}
+
+.tool-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.tool-btn {
+  flex: 1;
+  height: 72rpx;
+  background: #f5f5f5;
+  border-radius: 10rpx;
+  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tool-btn[disabled] {
+  opacity: 0.5;
+}
+
+/* 操作栏 */
+.action-bar {
+  display: flex;
+  gap: 20rpx;
+}
+
+.action-bar .btn {
+  flex: 1;
+}
+
+/* 结果区域 */
+.result-container {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 20rpx;
+}
+
+.compare-wrapper {
+  display: flex;
+  height: 600rpx;
+}
+
+.compare-image {
+  flex: 1;
+  position: relative;
+}
+
+.compare-image image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.compare-image.original {
+  border-right: 2rpx solid #fff;
+}
+
+.compare-label {
+  position: absolute;
+  bottom: 20rpx;
+  left: 20rpx;
+  padding: 8rpx 16rpx;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 24rpx;
+  border-radius: 8rpx;
+}
+
+.single-result image {
+  width: 100%;
+  display: block;
+}
+
+.view-toggle {
+  text-align: center;
+  padding: 20rpx;
+  background: #f9fafb;
+  font-size: 28rpx;
+  color: #666;
+}
+
+.result-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.result-actions .btn {
+  flex: 1;
+}
+
+/* 帮助卡片 */
+.help-card {
+  background: #eff6ff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-top: 40rpx;
+}
+
+.help-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #1e40af;
+  margin-bottom: 20rpx;
+}
+
+.help-step {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  font-size: 26rpx;
+  color: #3b82f6;
+}
+
+.help-step .num {
+  width: 36rpx;
+  height: 36rpx;
+  background: #3b82f6;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+}
