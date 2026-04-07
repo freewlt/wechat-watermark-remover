@@ -1,10 +1,10 @@
 {
   "pages": [
+    "pages/index/index",
     "pages/home/home",
     "pages/pic/pic",
     "pages/video/video",
     "pages/profile/profile",
-    "pages/index/index",
     "components/mask-canvas/mask-canvas"
   ],
   "window": {
