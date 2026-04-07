@@ -23,7 +23,7 @@
   },
   "compileType": "miniprogram",
   "libVersion": "2.32.0",
-  "appid": "wx0b5fd5d4d5f1dd68",
+  "appid": "your-app-id",
   "projectname": "watermark-remover",
   "condition": {}
 }
