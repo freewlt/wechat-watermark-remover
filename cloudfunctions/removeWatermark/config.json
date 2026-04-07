@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "openapi": [
+      "wxacode.get",
+      "security.imgSecCheck"
+    ]
+  },
+  "timeout": 60,
+  "memorySize": 512
+}

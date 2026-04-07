@@ -1,0 +1,143 @@
+/**index.wxss**/
+.header {
+  text-align: center;
+  padding: 40rpx 0;
+}
+
+.header-title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10rpx;
+}
+
+.header-subtitle {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.upload-card {
+  background: #fff;
+  border-radius: 20rpx;
+  height: 400rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+}
+
+.upload-placeholder {
+  text-align: center;
+}
+
+.upload-text {
+  display: block;
+  font-size: 80rpx;
+  color: #667eea;
+  margin-bottom: 20rpx;
+}
+
+.upload-tip {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 20rpx;
+}
+
+.card-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.position-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+
+.position-item {
+  width: calc(33.33% - 14rpx);
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #666;
+  transition: all 0.3s;
+}
+
+.position-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.remove-btn {
+  margin-top: 30rpx;
+}
+
+.processing-area {
+  text-align: center;
+  padding: 60rpx;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid #f3f3f3;
+  border-top: 6rpx solid #667eea;
+  border-radius: 50%;
+  margin: 0 auto 30rpx;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.processing-text {
+  display: block;
+  font-size: 30rpx;
+  color: #666;
+  margin-bottom: 30rpx;
+}
+
+.result-card {
+  margin-top: 30rpx;
+}
+
+.result-image {
+  width: 100%;
+  height: 400rpx;
+  border-radius: 12rpx;
+  margin-bottom: 30rpx;
+}
+
+.result-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.save-btn, .retry-btn {
+  flex: 1;
+}
+
+.tips-area {
+  margin-top: 40rpx;
+  text-align: center;
+}
+
+.tips {
+  font-size: 24rpx;
+  color: #999;
+}

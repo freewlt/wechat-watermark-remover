@@ -1,0 +1,62 @@
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <text class="header-title">智能去水印</text>
+    <text class="header-subtitle">一键去除图片水印</text>
+  </view>
+
+  <!-- 上传区域 -->
+  <view class="upload-card" bindtap="chooseImage">
+    <block wx:if="{{!originalImage}}">
+      <view class="upload-placeholder">
+        <text class="upload-text">+ 点击选择图片</text>
+        <text class="upload-tip">支持 JPG、PNG 格式</text>
+      </view>
+    </block>
+    <block wx:else>
+      <image class="preview-image" src="{{originalImage}}" mode="aspectFit"></image>
+    </block>
+  </view>
+
+  <!-- 水印位置 -->
+  <view class="card" wx:if="{{originalImage && !resultImage}}">
+    <text class="card-title">水印位置</text>
+    <view class="position-grid">
+      <view class="position-item {{watermarkPosition === 'top-left' ? 'active' : ''}}" 
+            data-position="top-left" bindtap="selectPosition">左上</view>
+      <view class="position-item {{watermarkPosition === 'top-right' ? 'active' : ''}}" 
+            data-position="top-right" bindtap="selectPosition">右上</view>
+      <view class="position-item {{watermarkPosition === 'center' ? 'active' : ''}}" 
+            data-position="center" bindtap="selectPosition">居中</view>
+      <view class="position-item {{watermarkPosition === 'bottom-left' ? 'active' : ''}}" 
+            data-position="bottom-left" bindtap="selectPosition">左下</view>
+      <view class="position-item {{watermarkPosition === 'bottom-right' ? 'active' : ''}}" 
+            data-position="bottom-right" bindtap="selectPosition">右下</view>
+      <view class="position-item {{watermarkPosition === 'auto' ? 'active' : ''}}" 
+            data-position="auto" bindtap="selectPosition">自动</view>
+    </view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="action-area" wx:if="{{originalImage && !isProcessing && !resultImage}}">
+    <button class="btn-primary remove-btn" bindtap="removeWatermark">开始去水印</button>
+  </view>
+
+  <!-- 处理中 -->
+  <view class="processing-area" wx:if="{{isProcessing}}">
+    <view class="loading-spinner"></view>
+    <text class="processing-text">{{processingText}}</text>
+    <progress percent="{{progress}}" stroke-width="6" color="#667eea"></progress>
+  </view>
+
+  <!-- 结果 -->
+  <view class="card result-card" wx:if="{{resultImage}}">
+    <text class="card-title">处理结果</text>
+    <image class="result-image" src="{{resultImage}}" mode="aspectFit"></image>
+    <view class="result-actions">
+      <button class="btn-primary save-btn" bindtap="saveImage">保存到相册</button>
+      <button class="btn-secondary retry-btn" bindtap="reset">再来一张</button>
+    </view>
+  </view>
+
+</view>
