@@ -7,10 +7,18 @@ cloud.init({
   traceUser: true
 })
 
-// 百度AI配置 - 请从环境变量或配置文件读取
+// 尝试读取本地配置文件
+let config = {}
+try {
+  config = require('./config.js')
+} catch (e) {
+  // 配置文件不存在，使用环境变量或默认值
+}
+
+// 百度AI配置 - 优先使用配置文件，其次环境变量
 const BAIDU_AI = {
-  apiKey: process.env.BAIDU_API_KEY || 'your-api-key',
-  secretKey: process.env.BAIDU_SECRET_KEY || 'your-secret-key',
+  apiKey: config.BAIDU_AI?.apiKey || process.env.BAIDU_API_KEY || 'your-api-key',
+  secretKey: config.BAIDU_AI?.secretKey || process.env.BAIDU_SECRET_KEY || 'your-secret-key',
   accessToken: null,
   tokenExpireTime: 0
 }

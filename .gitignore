@@ -19,6 +19,9 @@ config/config.js
 .env
 *.key
 
+# 云函数本地配置
+cloudfunctions/*/config.js
+
 # 微信小程序私有配置
 project.private.config.json
 
