@@ -1,0 +1,26 @@
+<!--pages/home/home.wxml-->
+<view class="container">
+  <view class="header">
+    <text class="title">内容处理助手</text>
+    <text class="subtitle">视频解析 · 图片处理</text>
+  </view>
+  
+  <view class="grid">
+    <view class="card" bindtap="goToVideo">
+      <view class="icon">🎬</view>
+      <text class="name">视频解析</text>
+      <text class="desc">支持抖音、快手、小红书</text>
+    </view>
+    
+    <view class="card" bindtap="goToImage">
+      <view class="icon">🖼️</view>
+      <text class="name">图片处理</text>
+      <text class="desc">涂抹去除水印</text>
+    </view>
+  </view>
+  
+  <view class="notice">
+    <text class="notice-title">⚠️ 使用声明</text>
+    <text class="notice-text">请确保您拥有处理内容的合法权利，禁止用于侵犯他人版权。</text>
+  </view>
+</view>

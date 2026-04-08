@@ -1,0 +1,111 @@
+<!--pages/profile/profile.wxml-->
+<view class="container">
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <view class="user-avatar">
+      <open-data type="userAvatarUrl"/>
+    </view>
+    <view class="user-info">
+      <open-data type="userNickName" class="user-name"/>
+      <view class="user-badge" wx:if="{{isVip}}">
+        <text class="vip-icon">👑</text>
+        <text>VIP会员</text>
+      </view>
+      <view class="user-badge free" wx:else>
+        <text>免费用户</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 使用统计 -->
+  <view class="stats-card">
+    <view class="stat-item">
+      <text class="stat-value">{{usage.today}}</text>
+      <text class="stat-label">今日剩余</text>
+    </view>
+    <view class="stat-divider"></view>
+    <view class="stat-item">
+      <text class="stat-value">{{usage.total}}</text>
+      <text class="stat-label">累计使用</text>
+    </view>
+    <view class="stat-divider"></view>
+    <view class="stat-item">
+      <text class="stat-value">{{savedCount}}</text>
+      <text class="stat-label">成功保存</text>
+    </view>
+  </view>
+
+  <!-- VIP 推广 -->
+  <view class="vip-banner" wx:if="{{!isVip}}" bindtap="goVip">
+    <view class="vip-content">
+      <text class="vip-title">🌟 开通 VIP 会员</text>
+      <text class="vip-desc">无限次数 · 高清导出 · 优先处理</text>
+    </view>
+    <text class="vip-btn">立即开通</text>
+  </view>
+
+  <!-- 功能列表 -->
+  <view class="menu-list">
+    <view class="menu-group">
+      <view class="menu-item" bindtap="watchAd">
+        <text class="menu-icon">📺</text>
+        <text class="menu-text">看视频得次数</text>
+        <text class="menu-extra">+3次</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      
+      <view class="menu-item" bindtap="inviteFriend">
+        <text class="menu-icon">🎁</text>
+        <text class="menu-text">邀请好友</text>
+        <text class="menu-extra">双方+5次</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="menu-group">
+      <view class="menu-item" bindtap="showHistory">
+        <text class="menu-icon">📋</text>
+        <text class="menu-text">处理记录</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      
+      <view class="menu-item" bindtap="clearCache">
+        <text class="menu-icon">🗑️</text>
+        <text class="menu-text">清理缓存</text>
+        <text class="menu-extra">{{cacheSize}}</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="menu-group">
+      <view class="menu-item" bindtap="showAbout">
+        <text class="menu-icon">ℹ️</text>
+        <text class="menu-text">关于我们</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      
+      <view class="menu-item" bindtap="showAgreement">
+        <text class="menu-icon">📄</text>
+        <text class="menu-text">用户协议</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      
+      <view class="menu-item" bindtap="showPrivacy">
+        <text class="menu-icon">🔒</text>
+        <text class="menu-text">隐私政策</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      
+      <button class="menu-item contact" open-type="contact">
+        <text class="menu-icon">💬</text>
+        <text class="menu-text">联系客服</text>
+        <text class="menu-arrow">›</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 版本信息 -->
+  <view class="version-info">
+    <text>版本 {{version}}</text>
+  </view>
+</view>

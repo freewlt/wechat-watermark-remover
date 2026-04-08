@@ -1,0 +1,33 @@
+# Windows
+[Dd]esktop.ini
+Thumbs.db
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+
+# Node.js
+node_modules/
+
+# 敏感配置文件
+config/secrets.js
+config/config.js
+.env
+*.key
+
+# 云函数本地配置
+cloudfunctions/*/config.js
+
+# 微信小程序私有配置
+project.private.config.json
+
+# 云函数依赖（会自动安装）
+cloudfunctions/*/node_modules/
+cloudfunctions/*/package-lock.json
+
+# 日志文件
+*.log

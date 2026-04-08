@@ -1,0 +1,49 @@
+<!--pages/video/video.wxml-->
+<view class="container">
+  <!-- 输入区 -->
+  <view class="input-section">
+    <textarea 
+      class="url-input" 
+      placeholder="粘贴视频链接（抖音、快手、小红书...）"
+      maxlength="500"
+      bindinput="onInput"
+      value="{{url}}"
+    />
+    <view class="paste-btn" bindtap="pasteUrl">粘贴</view>
+  </view>
+  
+  <!-- 解析按钮 -->
+  <button 
+    class="parse-btn {{loading ? 'loading' : ''}}" 
+    bindtap="parseVideo"
+    disabled="{{loading || !url}}"
+  >
+    {{loading ? '解析中...' : '开始解析'}}
+  </button>
+  
+  <!-- 结果展示 -->
+  <view class="result" wx:if="{{result}}">
+    <video 
+      class="preview-video" 
+      src="{{result.videoUrl}}" 
+      poster="{{result.cover}}"
+      controls
+    />
+    <view class="action-btns">
+      <button class="btn primary" bindtap="downloadVideo">保存视频</button>
+      <button class="btn secondary" bindtap="copyLink">复制链接</button>
+    </view>
+  </view>
+  
+  <!-- 历史记录 -->
+  <view class="history" wx:if="{{history.length > 0}}">
+    <view class="section-title">最近解析</view>
+    <view class="history-item" wx:for="{{history}}" wx:key="id" bindtap="useHistory" data-item="{{item}}">
+      <image class="thumb" src="{{item.cover}}" mode="aspectFill"/>
+      <view class="info">
+        <text class="title">{{item.title}}</text>
+        <text class="time">{{item.time}}</text>
+      </view>
+    </view>
+  </view>
+</view>
