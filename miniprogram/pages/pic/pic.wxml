@@ -9,7 +9,7 @@
     <view class="step-line {{step >= 2 ? 'active' : ''}}"></view>
     <view class="step {{step >= 2 ? 'active' : ''}}">
       <view class="step-num">2</view>
-      <text>涂抹水印</text>
+      <text>自动识别/涂抹水印</text>
     </view>
     <view class="step-line {{step >= 3 ? 'active' : ''}}"></view>
     <view class="step {{step >= 3 ? 'active' : ''}}">
@@ -40,27 +40,32 @@
 
   <!-- 步骤2: 涂抹编辑 -->
   <view class="step-content" wx:if="{{step === 2}}">
-    <view class="canvas-container">
-      <canvas 
-        type="2d" 
-        id="edit-canvas"
-        class="edit-canvas"
-        bindtouchstart="onTouchStart"
-        bindtouchmove="onTouchMove"
-        bindtouchend="onTouchEnd"
+    <view class="canvas-container" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;">
+      <!-- 原图显示 -->
+      <image 
+        class="preview-image" 
+        src="{{originalImage}}" 
+        mode="aspectFit"
+        style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
       />
       
-      <!-- 涂抹预览层 -->
-      <canvas 
-        type="2d" 
-        id="mask-canvas"
-        class="mask-canvas"
-        style="opacity: {{showMask ? 0.5 : 0}}"
+      <!-- 涂抹层 -->
+      <mask-canvas 
+        id="maskCanvas"
+        width="{{canvasWidth}}"
+        height="{{canvasHeight}}"
+        brushSize="{{brushSize}}"
+        brushColor="rgba(255, 0, 0, 0.5)"
+        bind:ready="onMaskCanvasReady"
+        bind:change="onMaskChange"
       />
     </view>
 
     <!-- 工具栏 -->
     <view class="toolbar">
+      <view class="tips-bar">
+        <text class="tips-text">💡 提示：直接点击"开始处理"自动识别水印，或涂抹水印区域后处理</text>
+      </view>
       <view class="tool-group">
         <text class="tool-label">画笔大小</text>
         <slider 
@@ -90,7 +95,7 @@
 
     <view class="action-bar">
       <button class="btn btn-secondary" bindtap="resetImage">重新选择</button>
-      <button class="btn btn-primary" bindtap="processImage" disabled="{{!hasMask}}">
+      <button class="btn btn-primary" bindtap="processImage">
         {{processing ? '处理中...' : '开始处理'}}
       </button>
     </view>
@@ -137,7 +142,7 @@
     </view>
     <view class="help-step">
       <text class="num">2</text>
-      <text>用手指涂抹水印区域（红色标记）</text>
+      <text>用自动识别或手指涂抹水印区域（红色标记）</text>
     </view>
     <view class="help-step">
       <text class="num">3</text>

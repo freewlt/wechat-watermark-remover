@@ -1,9 +1,9 @@
 {
   "pages": [
-    "pages/index/index",
     "pages/home/home",
-    "pages/pic/pic",
+    "pages/index/index",
     "pages/video/video",
+    "pages/pic/pic",
     "pages/profile/profile",
     "components/mask-canvas/mask-canvas"
   ],

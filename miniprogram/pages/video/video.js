@@ -35,32 +35,46 @@ Page({
   
   async parseVideo() {
     const { url } = this.data;
-    
+
     // 简单验证
     if (!url.includes('http')) {
       wx.showToast({ title: '请输入有效链接', icon: 'none' });
       return;
     }
-    
+
     this.setData({ loading: true });
-    
+
     try {
       // 调用后端解析接口
       const { result } = await wx.cloud.callFunction({
         name: 'parseVideo',
         data: { url }
       });
-      
-      this.setData({ 
-        result: result.data,
-        loading: false 
-      });
-      
-      // 保存历史
-      this.saveHistory(result.data);
-      
+
+      if (result.code === 0) {
+        this.setData({
+          result: result.data,
+          loading: false
+        });
+
+        // 保存历史
+        this.saveHistory(result.data);
+
+        // 显示提示
+        if (result.data.note) {
+          wx.showModal({
+            title: '提示',
+            content: result.data.note,
+            showCancel: false
+          });
+        }
+      } else {
+        throw new Error(result.msg || '解析失败');
+      }
+
     } catch (err) {
-      wx.showToast({ title: '解析失败，请重试', icon: 'none' });
+      console.error('解析失败:', err);
+      wx.showToast({ title: err.message || '解析失败，请重试', icon: 'none' });
       this.setData({ loading: false });
     }
   },

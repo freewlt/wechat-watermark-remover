@@ -1,20 +1,20 @@
 // components/mask-canvas/mask-canvas.js
 Component({
   properties: {
-    // 画布宽度（rpx）
+    // 画布宽度（px）
     width: {
       type: Number,
-      value: 600
+      value: 300
     },
-    // 画布高度（rpx）
+    // 画布高度（px）
     height: {
       type: Number,
-      value: 600
+      value: 300
     },
-    // 画笔大小（rpx）
+    // 画笔大小（px）
     brushSize: {
       type: Number,
-      value: 30
+      value: 15
     },
     // 画笔颜色
     brushColor: {
@@ -46,15 +46,31 @@ Component({
 
   lifetimes: {
     attached() {
-      this.initCanvas();
+      // 延迟初始化，等待属性传入
+      setTimeout(() => {
+        if (this.properties.width && this.properties.height) {
+          this.initCanvas();
+        }
+      }, 100);
+    }
+  },
+
+  observers: {
+    'width, height': function(width, height) {
+      console.log('属性变化 - width:', width, 'height:', height);
+      if (width && height && !this.data.canvas) {
+        this.initCanvas();
+      }
     }
   },
 
   methods: {
     // 初始化画布
     initCanvas() {
+      console.log('开始初始化画布, width:', this.properties.width, 'height:', this.properties.height);
       const query = this.createSelectorQuery();
       query.select('#mask-layer').fields({ node: true, size: true }).exec((res) => {
+        console.log('canvas query result:', res);
         if (res[0]) {
           const canvas = res[0].node;
           const ctx = canvas.getContext('2d');
@@ -65,34 +81,50 @@ Component({
           canvas.height = res[0].height * dpr;
           ctx.scale(dpr, dpr);
           
+          console.log('画布尺寸:', res[0].width, 'x', res[0].height, 'dpr:', dpr);
+          
           // 清空画布
           ctx.clearRect(0, 0, res[0].width, res[0].height);
           
           this.setData({ canvas, ctx });
+          
+          // 配置画笔
+          this.setupBrush();
           
           // 保存初始状态
           this.saveHistory();
           
           // 通知父组件就绪
           this.triggerEvent('ready', { canvas, ctx });
+          console.log('画布初始化完成');
+        } else {
+          console.error('canvas query failed, res:', res);
         }
       });
     },
 
-    // 坐标转换
+    // 坐标转换 - 使用触摸事件的坐标
     getPosition(e) {
-      const { clientX, clientY } = e.touches[0];
-      const rect = this.data.canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      // 直接使用相对于画布的坐标
       return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
+        x: touch.x,
+        y: touch.y
       };
     },
 
     onTouchStart(e) {
-      if (this.properties.disabled || !this.data.ctx) return;
+      console.log('onTouchStart', e);
+      if (this.properties.disabled || !this.data.ctx) {
+        console.log('触摸被禁用或ctx不存在');
+        return;
+      }
+      
+      // 确保画笔已配置
+      this.setupBrush();
       
       const { x, y } = this.getPosition(e);
+      console.log('触摸坐标:', x, y);
       
       this.setData({ 
         isDrawing: true,
@@ -106,6 +138,9 @@ Component({
       
       // 绘制起点
       this.drawPoint(x, y);
+      
+      // 通知父组件有变化
+      this.triggerEvent('change', { hasDrawing: true });
     },
 
     onTouchMove(e) {

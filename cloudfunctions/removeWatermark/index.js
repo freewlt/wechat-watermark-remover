@@ -7,47 +7,56 @@ cloud.init({
   traceUser: true
 })
 
-// 尝试读取本地配置文件
+// 读取本地配置文件
 let config = {}
 try {
   config = require('./config.js')
 } catch (e) {
-  // 配置文件不存在，使用环境变量或默认值
+  console.log('配置文件不存在，使用默认配置')
 }
 
-// 百度AI配置 - 优先使用配置文件，其次环境变量
+// 百度AI配置
 const BAIDU_AI = {
-  apiKey: config.BAIDU_AI?.apiKey || process.env.BAIDU_API_KEY || 'your-api-key',
-  secretKey: config.BAIDU_AI?.secretKey || process.env.BAIDU_SECRET_KEY || 'your-secret-key',
+  apiKey: config.BAIDU_AI?.apiKey || 'your-api-key',
+  secretKey: config.BAIDU_AI?.secretKey || 'your-secret-key',
   accessToken: null,
   tokenExpireTime: 0
 }
 
 exports.main = async (event, context) => {
-  const { fileID, position } = event
-  
-  console.log('去水印请求:', { fileID, position })
-  
+  // 兼容两种参数格式
+  const fileID = event.fileID || event.imageFileID
+  let position = event.position || 'auto'
+  const { maskData, width, height } = event
+
+  if (!fileID) {
+    return {
+      code: -1,
+      msg: '缺少文件ID参数（fileID 或 imageFileID）'
+    }
+  }
+
   try {
     // 1. 下载图片
-    console.log('下载图片...')
     const downloadRes = await cloud.downloadFile({ fileID })
     let buffer = downloadRes.fileContent
-    console.log('图片下载成功, 大小:', buffer.length)
-    
+
     // 2. 使用Jimp模糊处理水印区域（不裁剪图片）
-    console.log('使用Jimp模糊处理水印区域...')
+    
+    // 如果position是manual，使用auto模式（因为暂时不支持精确涂抹区域解析）
+    // 后续可以根据maskData解析涂抹的具体位置
+    if (position === 'manual') {
+      position = 'auto'
+    }
+    
     buffer = await blurWatermark(buffer, position)
-    console.log('模糊处理完成, 新大小:', buffer.length)
     
     // 3. 上传到微信云存储
-    console.log('上传到微信云存储...')
     const cloudPath = `results/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`
     const uploadRes = await cloud.uploadFile({
       cloudPath: cloudPath,
       fileContent: buffer
     })
-    console.log('微信云存储上传成功:', uploadRes.fileID)
     
     // 4. 获取临时链接
     const urlRes = await cloud.getTempFileURL({
@@ -55,17 +64,19 @@ exports.main = async (event, context) => {
     })
     
     return {
-      success: true,
-      imageUrl: urlRes.fileList[0].tempFileURL,
-      fileID: uploadRes.fileID,
-      message: '处理完成（已模糊处理水印区域）'
+      code: 0,
+      data: {
+        url: urlRes.fileList[0].tempFileURL,
+        fileID: uploadRes.fileID
+      },
+      msg: '处理完成（已模糊处理水印区域）'
     }
-    
+
   } catch (error) {
     console.error('去水印处理失败:', error)
     return {
-      success: false,
-      error: error.message,
+      code: -1,
+      msg: error.message,
       detail: error.stack
     }
   }
@@ -80,8 +91,6 @@ async function blurWatermark(buffer, position) {
     const image = await Jimp.read(buffer)
     const width = image.getWidth()
     const height = image.getHeight()
-
-    console.log(`原图尺寸: ${width}x${height}`)
 
     // 水印区域大小 - 根据常见水印尺寸调整
     // 通常水印是长条形的，宽度占图片的30-40%，高度占8-15%
@@ -117,13 +126,9 @@ async function blurWatermark(buffer, position) {
         break
     }
 
-    console.log(`处理区域: x=${x}, y=${y}, width=${watermarkWidth}, height=${watermarkHeight}`)
-
     // 使用周围像素填充水印区域
     // 策略：根据水印位置，从相邻区域复制像素
     await fillWithSurroundingPixels(image, x, y, watermarkWidth, watermarkHeight, position)
-
-    console.log('水印处理完成')
 
     // 返回处理后的图片buffer
     return await image.getBufferAsync(Jimp.MIME_JPEG)
@@ -179,8 +184,6 @@ async function fillWithSurroundingPixels(image, x, y, w, h, position) {
   sourceX = Math.max(0, Math.min(sourceX, width - w))
   sourceY = Math.max(0, Math.min(sourceY, height - h))
 
-  console.log(`从区域 (${sourceX}, ${sourceY}) 复制到 (${x}, ${y})`)
-
   // 复制像素
   for (let row = 0; row < h; row++) {
     for (let col = 0; col < w; col++) {
@@ -211,8 +214,6 @@ async function cropWatermark(buffer, position) {
     const image = await Jimp.read(buffer)
     const width = image.getWidth()
     const height = image.getHeight()
-    
-    console.log(`原图尺寸: ${width}x${height}`)
     
     // 根据位置裁剪
     // 默认裁剪底部10%区域（常见水印位置）
@@ -261,8 +262,6 @@ async function cropWatermark(buffer, position) {
         break
     }
     
-    console.log(`裁剪参数: x=${x}, y=${y}, width=${cropWidth}, height=${cropHeight}`)
-    
     // 执行裁剪
     image.crop(x, y, cropWidth, cropHeight)
     
@@ -303,7 +302,6 @@ async function getBaiduAccessToken() {
       BAIDU_AI.accessToken = response.data.access_token
       // 令牌有效期通常为30天，这里设置为29天后过期
       BAIDU_AI.tokenExpireTime = Date.now() + (29 * 24 * 60 * 60 * 1000)
-      console.log('获取百度AI令牌成功')
       return BAIDU_AI.accessToken
     } else {
       throw new Error('获取访问令牌失败: ' + JSON.stringify(response.data))
@@ -322,11 +320,9 @@ async function getBaiduAccessToken() {
  */
 async function repairImageWithBaiduAI(base64Image, accessToken, position, imageInfo) {
   try {
-    console.log('使用百度AI图像修复API...')
     
     // 构建修复区域
     const rect = getRepairRectangle(position, imageInfo)
-    console.log('修复区域:', rect)
     
     const apiUrl = `https://aip.baidubce.com/rest/2.0/image-process/v1/inpainting?access_token=${accessToken}`
     
@@ -336,11 +332,6 @@ async function repairImageWithBaiduAI(base64Image, accessToken, position, imageI
     
     // 暂时不添加rectangle参数，测试基础调用
     // 百度AI图像修复API的rectangle参数格式可能有特殊要求
-    console.log('图片Base64长度:', base64Image.length)
-    console.log('position:', position)
-    
-    console.log('调用百度AI图像修复API...')
-    console.log('请求URL:', apiUrl)
     
     const response = await axios({
       method: 'POST',
@@ -352,11 +343,8 @@ async function repairImageWithBaiduAI(base64Image, accessToken, position, imageI
       },
       timeout: 60000  // 60秒超时
     })
-    
-    console.log('API响应:', JSON.stringify(response.data).substring(0, 200))
-    
+        
     if (response.data && response.data.image) {
-      console.log('图像修复成功')
       return response.data.image
     } else if (response.data && response.data.error_code) {
       throw new Error(`图像修复API错误: ${response.data.error_msg} (错误码: ${response.data.error_code})`)
@@ -431,7 +419,6 @@ function getRepairRectangle(position, imageInfo) {
     height: Math.floor(watermarkHeight)
   }
   
-  console.log('计算修复区域:', result, '图片尺寸:', { width, height })
   return result
 }
 
@@ -479,55 +466,3 @@ function getRepairRect(position) {
   
   return null  // 让AI自动检测修复区域
 }
-
-// const cloud = require('wx-server-sdk');
-// const axios = require('axios');
-
-// cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
-
-// exports.main = async (event, context) => {
-//   const { imageFileID, maskData, width, height } = event;
-  
-//   try {
-//     // 1. 获取图片临时链接
-//     const { fileList } = await cloud.getTempFileURL({
-//       fileList: [imageFileID]
-//     });
-//     const imageUrl = fileList[0].tempFileURL;
-    
-//     // 2. 调用AI修复服务
-//     // 选项1: 阿里云视觉智能
-//     // 选项2: 腾讯云图像修复
-//     // 选项3: 自建模型（GPU服务器）
-    
-//     const response = await axios.post('https://your-ai-api.com/inpaint', {
-//       image: imageUrl,
-//       mask: maskData, // base64 或 URL
-//       width,
-//       height
-//     });
-    
-//     // 3. 上传处理后的图片到云存储
-//     const uploadResult = await cloud.uploadFile({
-//       cloudPath: `results/${Date.now()}_result.jpg`,
-//       fileContent: Buffer.from(response.data.image, 'base64')
-//     });
-    
-//     // 4. 获取结果链接
-//     const { fileList: resultFiles } = await cloud.getTempFileURL({
-//       fileList: [uploadResult.fileID]
-//     });
-    
-//     return {
-//       code: 0,
-//       data: {
-//         url: resultFiles[0].tempFileURL,
-//         fileID: uploadResult.fileID
-//       }
-//     };
-    
-//   } catch (err) {
-//     console.error('处理失败:', err);
-//     return { code: -1, msg: '图片处理失败' };
-//   }
-// };

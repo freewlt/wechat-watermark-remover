@@ -61,49 +61,54 @@ Page({
   },
 
   // ========== 画布初始化 ==========
-  
-  initCanvasSystem() {
-    const query = wx.createSelectorQuery();
-    
-    // 初始化编辑画布（底层 - 原图）
-    query.select('#edit-canvas').fields({ 
-      node: true, 
-      size: true 
-    }).exec((res) => {
-      if (res[0] && res[0].node) {
-        this.editCanvas = res[0].node;
-        this.editCtx = this.editCanvas.getContext('2d');
-        
-        const dpr = this.data.pixelRatio;
-        const width = res[0].width;
-        const height = res[0].height;
-        
-        this.editCanvas.width = width * dpr;
-        this.editCanvas.height = height * dpr;
-        this.editCtx.scale(dpr, dpr);
-      }
-    });
 
-    // 初始化遮罩画布（上层 - 涂抹）
-    query.select('#mask-canvas').fields({ 
-      node: true, 
-      size: true 
-    }).exec((res) => {
-      if (res[0] && res[0].node) {
-        this.maskCanvas = res[0].node;
-        this.maskCtx = this.maskCanvas.getContext('2d');
-        
-        const dpr = this.data.pixelRatio;
-        const width = res[0].width;
-        const height = res[0].height;
-        
-        this.maskCanvas.width = width * dpr;
-        this.maskCanvas.height = height * dpr;
-        this.maskCtx.scale(dpr, dpr);
-        
-        // 初始清空
-        this.maskCtx.clearRect(0, 0, width, height);
-      }
+  initCanvasSystem() {
+    return new Promise((resolve, reject) => {
+      const query = wx.createSelectorQuery();
+
+      // 初始化编辑画布（底层 - 原图）
+      query.select('#edit-canvas').fields({
+        node: true,
+        size: true
+      }).exec((res) => {
+        if (res[0] && res[0].node) {
+          this.editCanvas = res[0].node;
+          this.editCtx = this.editCanvas.getContext('2d');
+
+          const dpr = this.data.pixelRatio;
+          const width = res[0].width;
+          const height = res[0].height;
+
+          this.editCanvas.width = width * dpr;
+          this.editCanvas.height = height * dpr;
+          this.editCtx.scale(dpr, dpr);
+
+          // 初始化遮罩画布（上层 - 涂抹）
+          const query2 = wx.createSelectorQuery();
+          query2.select('#mask-canvas').fields({
+            node: true,
+            size: true
+          }).exec((res2) => {
+            if (res2[0] && res2[0].node) {
+              this.maskCanvas = res2[0].node;
+              this.maskCtx = this.maskCanvas.getContext('2d');
+
+              this.maskCanvas.width = width * dpr;
+              this.maskCanvas.height = height * dpr;
+              this.maskCtx.scale(dpr, dpr);
+
+              // 初始清空
+              this.maskCtx.clearRect(0, 0, width, height);
+
+              resolve();
+            } else {
+              reject(new Error('遮罩画布初始化失败'));
+            }
+          });
+        } else {
+          reject(new Error('编辑画布初始化失败'));
+        }
+      });
     });
   },
 
@@ -173,10 +178,9 @@ Page({
           compareMode: false
         });
 
-        // 延迟加载图片到画布（等待setData渲染完成）
+        // 等待组件渲染完成
         setTimeout(() => {
-          this.loadImageToCanvas(path || imagePath, canvasWidth, canvasHeight);
-        }, 100);
+        }, 200);
       },
       fail: (err) => {
         console.error('获取图片信息失败:', err);
@@ -188,138 +192,28 @@ Page({
     });
   },
 
-  loadImageToCanvas(imagePath, width, height) {
-    if (!this.editCanvas || !this.editCtx) {
-      console.error('画布未初始化');
-      // 重试
-      setTimeout(() => {
-        this.initCanvasSystem();
-        setTimeout(() => this.loadImageToCanvas(imagePath, width, height), 100);
-      }, 100);
-      return;
-    }
 
-    try {
-      const img = this.editCanvas.createImage();
-      
-      img.onload = () => {
-        // 保存图片元素供后续使用
-        this.currentImageElement = img;
-        
-        // 设置画布尺寸
-        this.editCanvas.width = width * this.data.pixelRatio;
-        this.editCanvas.height = height * this.data.pixelRatio;
-        this.editCtx.scale(this.data.pixelRatio, this.data.pixelRatio);
-        
-        this.maskCanvas.width = width * this.data.pixelRatio;
-        this.maskCanvas.height = height * this.data.pixelRatio;
-        this.maskCtx.scale(this.data.pixelRatio, this.data.pixelRatio);
-        
-        // 绘制原图
-        this.editCtx.clearRect(0, 0, width, height);
-        this.editCtx.drawImage(img, 0, 0, width, height);
-        
-        // 清空遮罩层
-        this.maskCtx.clearRect(0, 0, width, height);
-        
-        // 配置遮罩画笔
-        this.setupMaskBrush();
-      };
-      
-      img.onerror = (err) => {
-        console.error('图片加载失败:', err);
-        wx.showToast({ title: '图片加载失败', icon: 'none' });
-      };
-      
-      img.src = imagePath;
-      
-    } catch (err) {
-      console.error('加载图片到画布失败:', err);
-      wx.showToast({ title: '加载失败，请重试', icon: 'none' });
-    }
+
+  // ========== Mask Canvas 组件事件 ==========
+
+  onMaskCanvasReady(e) {
+    this.maskCanvas = e.detail.canvas;
+    this.maskCtx = e.detail.ctx;
   },
 
-  setupMaskBrush() {
-    if (!this.maskCtx) return;
-    
-    this.maskCtx.lineCap = 'round';
-    this.maskCtx.lineJoin = 'round';
-    this.maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
-    this.maskCtx.lineWidth = this.data.brushSize;
-  },
-
-  // ========== 触摸绘制 ==========
-
-  getTouchPosition(e) {
-    const touch = e.touches[0];
-    // 计算相对于画布的位置
-    const rect = this.maskCanvas ? {
-      left: 0,
-      top: 0,
-      width: this.data.canvasWidth,
-      height: this.data.canvasHeight
-    } : { left: 0, top: 0, width: 0, height: 0 };
-    
-    return {
-      x: touch.x !== undefined ? touch.x : (touch.clientX - rect.left),
-      y: touch.y !== undefined ? touch.y : (touch.clientY - rect.top)
-    };
-  },
-
-  onTouchStart(e) {
-    if (this.data.processing || !this.maskCtx) return;
-    
-    const pos = this.getTouchPosition(e);
-    
-    this.isDrawing = true;
-    this.lastPoint = pos;
-    
-    // 开始新路径
-    this.maskCtx.beginPath();
-    this.maskCtx.moveTo(pos.x, pos.y);
-    
-    // 画起始点
-    this.drawMaskPoint(pos.x, pos.y);
-    
+  onMaskChange(e) {
     if (!this.data.hasMask) {
       this.setData({ hasMask: true });
     }
   },
 
-  onTouchMove(e) {
-    if (!this.isDrawing || this.data.processing || !this.maskCtx) return;
-    
-    // 阻止默认滚动
-    // e.preventDefault && e.preventDefault();
-    
-    const pos = this.getTouchPosition(e);
-    
-    // 画线
-    this.maskCtx.lineTo(pos.x, pos.y);
-    this.maskCtx.stroke();
-    
-    this.lastPoint = pos;
-  },
-
-  onTouchEnd() {
-    if (!this.isDrawing) return;
-    
-    this.isDrawing = false;
-    this.lastPoint = null;
-    
-    // 保存撤销状态
-    this.saveUndoState();
-  },
-
-  drawMaskPoint(x, y) {
-    if (!this.maskCtx) return;
-    
-    const size = this.data.brushSize / 2;
-    
-    this.maskCtx.beginPath();
-    this.maskCtx.arc(x, y, size, 0, Math.PI * 2);
-    this.maskCtx.fillStyle = 'rgba(255, 0, 0, 0.6)';
-    this.maskCtx.fill();
+  // 获取遮罩数据（用于提交处理）
+  getMaskData() {
+    const maskCanvasComponent = this.selectComponent('#maskCanvas');
+    if (maskCanvasComponent) {
+      return maskCanvasComponent.getMaskData();
+    }
+    return null;
   },
 
   // ========== 工具方法 ==========
@@ -328,8 +222,11 @@ Page({
     const size = e.detail.value;
     this.setData({ brushSize: size });
     
-    if (this.maskCtx) {
-      this.maskCtx.lineWidth = size;
+    // 更新组件的画笔大小
+    const maskCanvasComponent = this.selectComponent('#maskCanvas');
+    if (maskCanvasComponent) {
+      // 通过设置属性更新画笔大小
+      // 注意：组件内部应该监听 brushSize 变化
     }
   },
 
@@ -353,29 +250,14 @@ Page({
   },
 
   undo() {
-    const { undoStack } = this.data;
-    
-    if (undoStack.length === 0) {
+    const maskCanvasComponent = this.selectComponent('#maskCanvas');
+    if (maskCanvasComponent && maskCanvasComponent.undo()) {
+      // 检查是否还有绘制内容
+      const hasDrawing = maskCanvasComponent.hasDrawing();
+      this.setData({ hasMask: hasDrawing });
+    } else {
       wx.showToast({ title: '没有可撤销的', icon: 'none' });
-      return;
     }
-    
-    // 移除最后一步
-    const newStack = undoStack.slice(0, -1);
-    this.setData({ undoStack: newStack });
-    
-    // 清空并恢复上一步
-    const width = this.data.canvasWidth * this.data.pixelRatio;
-    const height = this.data.canvasHeight * this.data.pixelRatio;
-    this.maskCtx.clearRect(0, 0, width, height);
-    
-    if (newStack.length > 0) {
-      const lastState = newStack[newStack.length - 1];
-      this.maskCtx.putImageData(lastState, 0, 0);
-    }
-    
-    // 更新hasMask状态
-    this.setData({ hasMask: newStack.length > 0 });
   },
 
   clearMask() {
@@ -383,17 +265,18 @@ Page({
       wx.showToast({ title: '没有涂抹内容', icon: 'none' });
       return;
     }
-    
+
     wx.showModal({
       title: '确认清空',
       content: '确定要清空所有涂抹区域吗？',
       confirmColor: '#07c160',
       success: (res) => {
         if (res.confirm) {
-          const width = this.data.canvasWidth * this.data.pixelRatio;
-          const height = this.data.canvasHeight * this.data.pixelRatio;
-          this.maskCtx.clearRect(0, 0, width, height);
-          this.setData({ hasMask: false, undoStack: [] });
+          const maskCanvasComponent = this.selectComponent('#maskCanvas');
+          if (maskCanvasComponent) {
+            maskCanvasComponent.clear();
+          }
+          this.setData({ hasMask: false });
         }
       }
     });
@@ -425,39 +308,45 @@ Page({
   // ========== 图片处理 ==========
 
   async processImage() {
-    if (!this.data.hasMask) {
-      wx.showToast({ title: '请先涂抹水印区域', icon: 'none' });
-      return;
-    }
-    
+    // 检查是否有涂抹内容
+    const maskCanvasComponent = this.selectComponent('#maskCanvas');
+    const hasDrawing = maskCanvasComponent && maskCanvasComponent.hasDrawing();
+
+    // 如果没有涂抹，使用自动识别模式
+    const position = hasDrawing ? 'manual' : 'auto';
+
     // 检查使用次数
-    const usage = wx.getStorageSync('usage') || { today: 3, total: 0, lastDate: '' };
-    const today = new Date().toDateString();
-    
-    if (usage.lastDate !== today) {
-      usage.today = 3;
-      usage.lastDate = today;
-    }
-    
-    if (usage.today <= 0) {
-      wx.showModal({
-        title: '次数用完',
-        content: '今日免费次数已用完，观看广告可获得额外次数',
-        confirmText: '看广告',
-        success: (res) => {
-          if (res.confirm) this.watchAd();
-        }
-      });
-      return;
-    }
+    // const usage = wx.getStorageSync('usage') || { today: 3, total: 0, lastDate: '' };
+    // const today = new Date().toDateString();
+
+    // if (usage.lastDate !== today) {
+    //   usage.today = 3;
+    //   usage.lastDate = today;
+    // }
+
+    // if (usage.today <= 0) {
+    //   wx.showModal({
+    //     title: '次数用完',
+    //     content: '今日免费次数已用完，观看广告可获得额外次数',
+    //     confirmText: '看广告',
+    //     success: (res) => {
+    //       if (res.confirm) this.watchAd();
+    //     }
+    //   });
+    //   return;
+    // }
 
     this.setData({ processing: true });
-    wx.showLoading({ title: '处理中...', mask: true });
+    wx.showLoading({ title: hasDrawing ? '按涂抹区域处理中...' : '自动识别水印中...', mask: true });
 
     try {
-      // 1. 获取遮罩图片数据
-      const maskDataUrl = this.maskCanvas.toDataURL('image/png');
-      
+      // 1. 获取遮罩图片数据（如果有涂抹）
+      let maskDataUrl = null;
+      if (hasDrawing) {
+        maskDataUrl = this.getMaskData();
+      } else {
+      }
+
       // 2. 上传原图到云存储
       const uploadRes = await wx.cloud.uploadFile({
         cloudPath: `uploads/${Date.now()}_original.jpg`,
@@ -471,61 +360,71 @@ Page({
           imageFileID: uploadRes.fileID,
           maskData: maskDataUrl,
           width: this.data.canvasWidth,
-          height: this.data.canvasHeight
+          height: this.data.canvasHeight,
+          position: position
         }
       });
 
       if (result.code === 0) {
         // 更新次数
-        usage.today--;
-        usage.total++;
-        wx.setStorageSync('usage', usage);
-        
+        // usage.today--;
+        // usage.total++;
+        // wx.setStorageSync('usage', usage);
+
         this.setData({
           resultImage: result.data.url,
           step: 3,
           processing: false
         });
-        
+
         wx.hideLoading();
+        wx.showToast({ title: '处理完成', icon: 'success' });
       } else {
         throw new Error(result.msg || '处理失败');
       }
-      
+
     } catch (err) {
       console.error('处理失败:', err);
       wx.hideLoading();
-      wx.showToast({ 
-        title: err.message || '处理失败，请重试', 
+
+      let errorMsg = '处理失败';
+      if (err.errMsg && err.errMsg.includes('timeout')) {
+        errorMsg = '处理超时，请重试或选择较小的图片';
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+
+      wx.showToast({
+        title: errorMsg,
         icon: 'none',
-        duration: 2000
+        duration: 3000
       });
       this.setData({ processing: false });
     }
   },
 
-  watchAd() {
-    if (wx.createRewardedVideoAd) {
-      const ad = wx.createRewardedVideoAd({ 
-        adUnitId: 'your-ad-unit-id'
-      });
+  // watchAd() {
+  //   if (wx.createRewardedVideoAd) {
+  //     const ad = wx.createRewardedVideoAd({ 
+  //       adUnitId: 'your-ad-unit-id'
+  //     });
       
-      ad.onClose((res) => {
-        if (res && res.isEnded) {
-          const usage = wx.getStorageSync('usage') || { today: 0, total: 0 };
-          usage.today += 3;
-          wx.setStorageSync('usage', usage);
-          wx.showToast({ title: '获得3次机会', icon: 'success' });
-        }
-      });
+  //     ad.onClose((res) => {
+  //       if (res && res.isEnded) {
+  //         const usage = wx.getStorageSync('usage') || { today: 0, total: 0 };
+  //         usage.today += 3;
+  //         wx.setStorageSync('usage', usage);
+  //         wx.showToast({ title: '获得3次机会', icon: 'success' });
+  //       }
+  //     });
       
-      ad.show().catch(() => {
-        ad.load().then(() => ad.show()).catch(() => {
-          wx.showToast({ title: '广告加载失败', icon: 'none' });
-        });
-      });
-    }
-  },
+  //     ad.show().catch(() => {
+  //       ad.load().then(() => ad.show()).catch(() => {
+  //         wx.showToast({ title: '广告加载失败', icon: 'none' });
+  //       });
+  //     });
+  //   }
+  // },
 
   toggleCompare() {
     this.setData({ compareMode: !this.data.compareMode });
@@ -541,51 +440,53 @@ Page({
     this.setData({ step: 2 });
   },
 
-  async saveImage() {
-    if (!this.data.resultImage) {
-      wx.showToast({ title: '没有可保存的图片', icon: 'none' });
-      return;
+  saveImage() {
+    const { resultImage } = this.data
+    
+    if (!resultImage) {
+      wx.showToast({ title: '没有可保存的图片', icon: 'none' })
+      return
     }
-
-    wx.showLoading({ title: '保存中...', mask: true });
-
-    try {
-      const downloadRes = await wx.downloadFile({
-        url: this.data.resultImage,
-        timeout: 30000
-      });
-
-      if (downloadRes.statusCode === 200) {
-        await wx.saveImageToPhotosAlbum({
-          filePath: downloadRes.tempFilePath
-        });
-        
-        const savedCount = (wx.getStorageSync('savedCount') || 0) + 1;
-        wx.setStorageSync('savedCount', savedCount);
-        
-        wx.showToast({ title: '保存成功', icon: 'success' });
-      } else {
-        throw new Error('下载失败');
-      }
-    } catch (err) {
-      console.error('保存失败:', err);
-      
-      if (err.errMsg && err.errMsg.includes('auth')) {
-        wx.showModal({
-          title: '需要授权',
-          content: '请授权保存到相册权限',
-          success: (res) => {
-            if (res.confirm) {
-              wx.openSetting();
+    
+    wx.showLoading({ title: '保存中...' })
+    
+    // 下载图片到本地
+    wx.downloadFile({
+      url: resultImage,
+      success: (res) => {
+        if (res.statusCode === 200) {
+          wx.saveImageToPhotosAlbum({
+            filePath: res.tempFilePath,
+            success: () => {
+              wx.hideLoading()
+              wx.showToast({ title: '保存成功', icon: 'success' })
+            },
+            fail: (err) => {
+              wx.hideLoading()
+              console.error('保存失败:', err)
+              // 如果用户拒绝授权，提示手动保存
+              if (err.errMsg && err.errMsg.includes('auth deny')) {
+                wx.showModal({
+                  title: '提示',
+                  content: '需要授权保存到相册，请在设置中开启权限',
+                  showCancel: false
+                })
+              } else {
+                wx.showToast({ title: '保存失败', icon: 'none' })
+              }
             }
-          }
-        });
-      } else {
-        wx.showToast({ title: '保存失败', icon: 'none' });
+          })
+        } else {
+          wx.hideLoading()
+          wx.showToast({ title: '下载失败', icon: 'none' })
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading()
+        console.error('下载失败:', err)
+        wx.showToast({ title: '下载失败', icon: 'none' })
       }
-    } finally {
-      wx.hideLoading();
-    }
+    })
   },
 
   processNew() {
