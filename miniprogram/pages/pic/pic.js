@@ -147,25 +147,37 @@ Page({
       src: imagePath,
       success: (info) => {
         const { width, height, path } = info;
-        
+
         // 计算适配尺寸（保持比例）
-        const maxWidth = this.data.windowWidth - 60; // 左右各30rpx边距
-        const maxHeight = 700; // 最大高度限制
-        
+        // 限制最大尺寸，避免内存问题和 canvas 过大
+        const sysInfo = wx.getSystemInfoSync();
+        const maxWidth = sysInfo.windowWidth - 40; // 左右各20px边距
+        const maxHeight = Math.min(sysInfo.windowHeight * 0.5, 600); // 最大高度为屏幕高度的50%或600px
+
         let canvasWidth = width;
         let canvasHeight = height;
-        
+
         // 计算缩放比例
         const scale = Math.min(
           maxWidth / width,
           maxHeight / height,
           1
         );
-        
+
         if (scale < 1) {
           canvasWidth = Math.floor(width * scale);
           canvasHeight = Math.floor(height * scale);
         }
+
+        // 确保尺寸不超过限制（防止内存溢出和数据传输过大）
+        const MAX_CANVAS_SIZE = 1024; // 限制最大尺寸为 1024，平衡性能和内存
+        if (canvasWidth > MAX_CANVAS_SIZE || canvasHeight > MAX_CANVAS_SIZE) {
+          const maxScale = MAX_CANVAS_SIZE / Math.max(canvasWidth, canvasHeight);
+          canvasWidth = Math.floor(canvasWidth * maxScale);
+          canvasHeight = Math.floor(canvasHeight * maxScale);
+        }
+
+        console.log('图片尺寸:', width, 'x', height, '画布尺寸:', canvasWidth, 'x', canvasHeight);
 
         this.setData({
           originalImage: path || imagePath,
@@ -178,9 +190,13 @@ Page({
           compareMode: false
         });
 
-        // 等待组件渲染完成
+        // 等待组件渲染完成后重置 mask-canvas
         setTimeout(() => {
-        }, 200);
+          const maskCanvasComponent = this.selectComponent('#maskCanvas');
+          if (maskCanvasComponent) {
+            maskCanvasComponent.reset();
+          }
+        }, 300);
       },
       fail: (err) => {
         console.error('获取图片信息失败:', err);
@@ -340,27 +356,19 @@ Page({
     wx.showLoading({ title: hasDrawing ? '按涂抹区域处理中...' : '自动识别水印中...', mask: true });
 
     try {
-      // 1. 获取遮罩图片数据（如果有涂抹）
-      let maskDataUrl = null;
-      if (hasDrawing) {
-        maskDataUrl = this.getMaskData();
-      } else {
-      }
-
-      // 2. 上传原图到云存储
+      // 1. 上传原图到云存储
       const uploadRes = await wx.cloud.uploadFile({
         cloudPath: `uploads/${Date.now()}_original.jpg`,
         filePath: this.data.originalImage
       });
 
-      // 3. 调用云函数处理
+      // 2. 调用云函数处理
+      // 注意：暂时不传递 maskData，因为数据量太大容易超出限制
+      // 后续如果需要精确涂抹区域处理，可以将 maskData 转换为图片再上传
       const { result } = await wx.cloud.callFunction({
         name: 'removeWatermark',
         data: {
-          imageFileID: uploadRes.fileID,
-          maskData: maskDataUrl,
-          width: this.data.canvasWidth,
-          height: this.data.canvasHeight,
+          fileID: uploadRes.fileID,
           position: position
         }
       });

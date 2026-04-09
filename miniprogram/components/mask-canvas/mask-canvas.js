@@ -1,33 +1,23 @@
 // components/mask-canvas/mask-canvas.js
 Component({
   properties: {
-    // 画布宽度（px）
     width: {
       type: Number,
       value: 300
     },
-    // 画布高度（px）
     height: {
       type: Number,
       value: 300
     },
-    // 画笔大小（px）
     brushSize: {
       type: Number,
       value: 15
     },
-    // 画笔颜色
     brushColor: {
       type: String,
       value: 'rgba(255, 0, 0, 0.5)'
     },
-    // 是否禁用
     disabled: {
-      type: Boolean,
-      value: false
-    },
-    // 是否显示光标
-    showCursor: {
       type: Boolean,
       value: false
     }
@@ -37,28 +27,21 @@ Component({
     canvas: null,
     ctx: null,
     isDrawing: false,
-    cursorX: 0,
-    cursorY: 0,
-    // 历史记录栈
     historyStack: [],
     historyIndex: -1
   },
 
   lifetimes: {
-    attached() {
-      // 延迟初始化，等待属性传入
-      setTimeout(() => {
-        if (this.properties.width && this.properties.height) {
-          this.initCanvas();
-        }
-      }, 100);
+    ready() {
+      // 页面就绪后初始化
+      this.initCanvas();
     }
   },
 
   observers: {
     'width, height': function(width, height) {
-      console.log('属性变化 - width:', width, 'height:', height);
-      if (width && height && !this.data.canvas) {
+      if (width && height) {
+        // 尺寸变化时重新初始化
         this.initCanvas();
       }
     }
@@ -67,46 +50,48 @@ Component({
   methods: {
     // 初始化画布
     initCanvas() {
-      console.log('开始初始化画布, width:', this.properties.width, 'height:', this.properties.height);
+      const { width, height } = this.properties;
+      if (!width || !height) return;
+
+      console.log('初始化画布:', width, 'x', height);
+
       const query = this.createSelectorQuery();
       query.select('#mask-layer').fields({ node: true, size: true }).exec((res) => {
-        console.log('canvas query result:', res);
-        if (res[0]) {
-          const canvas = res[0].node;
-          const ctx = canvas.getContext('2d');
-          
-          // 设置画布实际尺寸（考虑像素比）
-          const dpr = wx.getSystemInfoSync().pixelRatio;
-          canvas.width = res[0].width * dpr;
-          canvas.height = res[0].height * dpr;
-          ctx.scale(dpr, dpr);
-          
-          console.log('画布尺寸:', res[0].width, 'x', res[0].height, 'dpr:', dpr);
-          
-          // 清空画布
-          ctx.clearRect(0, 0, res[0].width, res[0].height);
-          
-          this.setData({ canvas, ctx });
-          
-          // 配置画笔
-          this.setupBrush();
-          
-          // 保存初始状态
-          this.saveHistory();
-          
-          // 通知父组件就绪
-          this.triggerEvent('ready', { canvas, ctx });
-          console.log('画布初始化完成');
-        } else {
-          console.error('canvas query failed, res:', res);
+        if (!res[0]) {
+          console.error('canvas 未找到');
+          return;
         }
+
+        const canvas = res[0].node;
+        const ctx = canvas.getContext('2d');
+
+        // 设置画布尺寸（使用逻辑像素，不乘以 dpr 避免过大）
+        canvas.width = width;
+        canvas.height = height;
+
+        // 清空画布
+        ctx.clearRect(0, 0, width, height);
+
+        // 配置画笔
+        ctx.lineWidth = this.properties.brushSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = this.properties.brushColor;
+
+        this.setData({ canvas, ctx });
+
+        // 保存初始状态
+        this.saveHistory();
+
+        // 通知父组件就绪
+        this.triggerEvent('ready', { canvas, ctx });
+        console.log('画布初始化完成');
       });
     },
 
-    // 坐标转换 - 使用触摸事件的坐标
+    // 获取触摸坐标（相对于 canvas）
     getPosition(e) {
       const touch = e.touches[0];
-      // 直接使用相对于画布的坐标
       return {
         x: touch.x,
         y: touch.y
@@ -114,107 +99,80 @@ Component({
     },
 
     onTouchStart(e) {
-      console.log('onTouchStart', e);
       if (this.properties.disabled || !this.data.ctx) {
-        console.log('触摸被禁用或ctx不存在');
+        console.log('触摸被禁用或 ctx 不存在');
         return;
       }
-      
-      // 确保画笔已配置
-      this.setupBrush();
-      
+
       const { x, y } = this.getPosition(e);
-      console.log('触摸坐标:', x, y);
-      
-      this.setData({ 
-        isDrawing: true,
-        cursorX: x,
-        cursorY: y
-      });
-      
+      console.log('触摸开始:', x, y);
+
+      this.setData({ isDrawing: true });
+
       const ctx = this.data.ctx;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      
+
       // 绘制起点
-      this.drawPoint(x, y);
-      
-      // 通知父组件有变化
+      ctx.beginPath();
+      ctx.arc(x, y, this.properties.brushSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = this.properties.brushColor;
+      ctx.fill();
+
+      // 通知父组件
       this.triggerEvent('change', { hasDrawing: true });
     },
 
     onTouchMove(e) {
-      if (!this.data.isDrawing || this.properties.disabled) return;
-      
+      if (!this.data.isDrawing || this.properties.disabled || !this.data.ctx) {
+        return;
+      }
+
       const { x, y } = this.getPosition(e);
-      
-      this.setData({
-        cursorX: x,
-        cursorY: y
-      });
-      
+
       const ctx = this.data.ctx;
+      ctx.beginPath();
+      ctx.strokeStyle = this.properties.brushColor;
+      ctx.lineWidth = this.properties.brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.lineTo(x, y);
       ctx.stroke();
-      
-      // 通知父组件正在绘制
-      this.triggerEvent('drawing', { x, y });
+
+      // 移动画笔起点
+      ctx.moveTo(x, y);
     },
 
     onTouchEnd() {
       if (!this.data.isDrawing) return;
-      
+
       this.setData({ isDrawing: false });
       this.saveHistory();
-      
-      // 通知父组件绘制完成
+
       this.triggerEvent('drawend');
+      console.log('触摸结束');
     },
 
     onTouchCancel() {
       this.setData({ isDrawing: false });
     },
 
-    // 绘制单个点
-    drawPoint(x, y) {
-      const ctx = this.data.ctx;
-      const { brushSize, brushColor } = this.properties;
-      
-      ctx.beginPath();
-      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-      ctx.fillStyle = brushColor;
-      ctx.fill();
-    },
-
-    // 配置画笔
-    setupBrush() {
-      const ctx = this.data.ctx;
-      const { brushSize, brushColor } = this.properties;
-      
-      ctx.lineWidth = brushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = brushColor;
-    },
-
-    // 保存历史（用于撤销）
+    // 保存历史记录
     saveHistory() {
+      if (!this.data.canvas) return;
+
+      const ctx = this.data.ctx;
+      const imageData = ctx.getImageData(0, 0, this.properties.width, this.properties.height);
+
       const { historyStack, historyIndex } = this.data;
-      const imageData = this.data.ctx.getImageData(
-        0, 0, 
-        this.data.canvas.width, 
-        this.data.canvas.height
-      );
-      
-      // 删除当前位置之后的历史
       const newStack = historyStack.slice(0, historyIndex + 1);
       newStack.push(imageData);
-      
+
       // 限制历史记录数量
       if (newStack.length > 10) {
         newStack.shift();
       }
-      
+
       this.setData({
         historyStack: newStack,
         historyIndex: newStack.length - 1
@@ -223,24 +181,11 @@ Component({
 
     // 撤销
     undo() {
-      const { historyStack, historyIndex } = this.data;
+      const { historyStack, historyIndex, ctx } = this.data;
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1;
         const imageData = historyStack[newIndex];
-        this.data.ctx.putImageData(imageData, 0, 0);
-        this.setData({ historyIndex: newIndex });
-        return true;
-      }
-      return false;
-    },
-
-    // 重做
-    redo() {
-      const { historyStack, historyIndex } = this.data;
-      if (historyIndex < historyStack.length - 1) {
-        const newIndex = historyIndex + 1;
-        const imageData = historyStack[newIndex];
-        this.data.ctx.putImageData(imageData, 0, 0);
+        ctx.putImageData(imageData, 0, 0);
         this.setData({ historyIndex: newIndex });
         return true;
       }
@@ -249,35 +194,50 @@ Component({
 
     // 清空
     clear() {
+      if (!this.data.ctx) return;
       const ctx = this.data.ctx;
-      const canvas = this.data.canvas;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, this.properties.width, this.properties.height);
       this.saveHistory();
+      this.triggerEvent('change', { hasDrawing: false });
     },
 
-    // 获取遮罩数据（base64）
+    // 获取画布数据（兼容旧接口名）
     getMaskData() {
-      return this.data.canvas.toDataURL('image/png');
+      if (!this.data.canvas) return null;
+      return this.data.ctx.getImageData(0, 0, this.properties.width, this.properties.height);
     },
 
-    // 获取遮罩ImageData
+    // 获取画布数据（新接口名）
     getImageData() {
-      return this.data.ctx.getImageData(
-        0, 0,
-        this.data.canvas.width,
-        this.data.canvas.height
-      );
+      if (!this.data.canvas) return null;
+      return this.data.ctx.getImageData(0, 0, this.properties.width, this.properties.height);
     },
 
-    // 判断是否有绘制内容
+    // 检查是否有涂抹内容
     hasDrawing() {
-      const imageData = this.getImageData();
-      const data = imageData.data;
-      // 检查是否有非透明像素
-      for (let i = 3; i < data.length; i += 4) {
-        if (data[i] > 0) return true;
-      }
-      return false;
+      return this.data.historyIndex > 0;
+    },
+
+    // 重置画布（切换图片时调用）
+    reset() {
+      if (!this.data.ctx) return;
+
+      const ctx = this.data.ctx;
+      const { width, height } = this.properties;
+
+      // 清空画布
+      ctx.clearRect(0, 0, width, height);
+
+      // 重置历史记录
+      this.setData({
+        historyStack: [],
+        historyIndex: -1
+      });
+
+      // 保存初始状态
+      this.saveHistory();
+
+      console.log('画布已重置');
     }
   }
 });

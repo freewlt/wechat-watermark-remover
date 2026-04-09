@@ -39,18 +39,18 @@
   </view>
 
   <!-- 步骤2: 涂抹编辑 -->
-  <view class="step-content" wx:if="{{step === 2}}">
+  <scroll-view class="step-content scrollable" wx:if="{{step === 2}}" scroll-y="true">
     <view class="canvas-container" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;">
       <!-- 原图显示 -->
-      <image 
-        class="preview-image" 
-        src="{{originalImage}}" 
+      <image
+        class="preview-image"
+        src="{{originalImage}}"
         mode="aspectFit"
         style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
       />
-      
+
       <!-- 涂抹层 -->
-      <mask-canvas 
+      <mask-canvas
         id="maskCanvas"
         width="{{canvasWidth}}"
         height="{{canvasHeight}}"
@@ -99,10 +99,10 @@
         {{processing ? '处理中...' : '开始处理'}}
       </button>
     </view>
-  </view>
+  </scroll-view>
 
   <!-- 步骤3: 结果展示 -->
-  <view class="step-content" wx:if="{{step === 3}}">
+  <scroll-view class="step-content scrollable" wx:if="{{step === 3}}" scroll-y="true">
     <view class="result-container">
       <!-- 对比模式 -->
       <view class="compare-wrapper" wx:if="{{compareMode}}">
@@ -115,7 +115,7 @@
           <text class="compare-label">处理后</text>
         </view>
       </view>
-      
+
       <!-- 单图模式 -->
       <view class="single-result" wx:else>
         <image src="{{resultImage}}" mode="widthFix" bindtap="previewImage"/>
@@ -131,7 +131,7 @@
       <button class="btn btn-primary" bindtap="saveImage">保存到相册</button>
       <button class="btn btn-outline" bindtap="processNew">处理新图片</button>
     </view>
-  </view>
+  </scroll-view>
 
   <!-- 使用提示 -->
   <view class="help-card" wx:if="{{step === 1}}">
