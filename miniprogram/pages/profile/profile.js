@@ -1,26 +1,121 @@
 // pages/profile/profile.js
 Page({
   data: {
+    isLoggedIn: false,
+    userInfo: null,
     isVip: false,
     usage: { today: 3, total: 0 },
     savedCount: 0,
     cacheSize: '0KB',
-    version: '1.0.0'
+    version: '4.0.0'
   },
 
   onLoad() {
     this.loadData();
     this.calcCacheSize();
+    this.checkLoginStatus();
   },
 
   onShow() {
     this.loadData();
   },
 
+  // 检查登录状态
+  checkLoginStatus() {
+    const userInfo = wx.getStorageSync('userInfo');
+    if (userInfo) {
+      this.setData({
+        isLoggedIn: true,
+        userInfo: userInfo
+      });
+    }
+  },
+
+  // 点击用户卡片
+  onUserCardTap() {
+    if (this.data.isLoggedIn) {
+      // 已登录，显示退出登录选项
+      wx.showActionSheet({
+        itemList: ['退出登录'],
+        success: (res) => {
+          if (res.tapIndex === 0) {
+            this.logout();
+          }
+        }
+      });
+    } else {
+      // 未登录，执行登录
+      this.login();
+    }
+  },
+
+  // 登录
+  login() {
+    wx.showLoading({ title: '登录中...' });
+
+    // 获取用户信息
+    wx.getUserProfile({
+      desc: '用于完善用户资料',
+      success: (res) => {
+        const userInfo = res.userInfo;
+
+        // 保存用户信息
+        wx.setStorageSync('userInfo', userInfo);
+
+        this.setData({
+          isLoggedIn: true,
+          userInfo: userInfo
+        });
+
+        wx.hideLoading();
+        wx.showToast({ title: '登录成功', icon: 'success' });
+
+        // 可以在这里调用云函数保存用户信息到数据库
+        this.saveUserInfoToCloud(userInfo);
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        console.error('登录失败:', err);
+        wx.showToast({ title: '登录取消', icon: 'none' });
+      }
+    });
+  },
+
+  // 退出登录
+  logout() {
+    wx.showModal({
+      title: '提示',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          wx.removeStorageSync('userInfo');
+          this.setData({
+            isLoggedIn: false,
+            userInfo: null
+          });
+          wx.showToast({ title: '已退出登录', icon: 'success' });
+        }
+      }
+    });
+  },
+
+  // 保存用户信息到云端
+  saveUserInfoToCloud(userInfo) {
+    wx.cloud.callFunction({
+      name: 'saveUserInfo',
+      data: {
+        userInfo: userInfo,
+        loginTime: new Date().getTime()
+      }
+    }).catch(err => {
+      console.error('保存用户信息失败:', err);
+    });
+  },
+
   loadData() {
     const usage = wx.getStorageSync('usage') || { today: 3, total: 0 };
     const savedCount = wx.getStorageSync('savedCount') || 0;
-    
+
     this.setData({
       usage,
       savedCount,
@@ -90,7 +185,7 @@ Page({
   showAbout() {
     wx.showModal({
       title: '关于',
-      content: '内容助手 v1.0.0\n\n一款简洁实用的视频解析与图片处理工具。',
+      content: '内容助手 v4.0.0\n\n一款简洁实用的视频解析与图片处理工具。',
       showCancel: false
     });
   },

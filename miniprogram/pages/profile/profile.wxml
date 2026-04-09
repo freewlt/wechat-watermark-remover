@@ -1,24 +1,39 @@
 <!--pages/profile/profile.wxml-->
 <view class="container">
   <!-- 用户信息卡片 -->
-  <view class="user-card">
-    <view class="user-avatar">
-      <open-data type="userAvatarUrl"/>
-    </view>
-    <view class="user-info">
-      <open-data type="userNickName" class="user-name"/>
-      <view class="user-badge" wx:if="{{isVip}}">
-        <text class="vip-icon">👑</text>
-        <text>VIP会员</text>
+  <view class="user-card" bindtap="onUserCardTap">
+    <!-- 已登录状态 -->
+    <block wx:if="{{isLoggedIn}}">
+      <view class="user-avatar">
+        <image src="{{userInfo.avatarUrl}}" mode="aspectFill"/>
       </view>
-      <view class="user-badge free" wx:else>
-        <text>免费用户</text>
+      <view class="user-info">
+        <text class="user-name">{{userInfo.nickName}}</text>
+        <view class="user-badge" wx:if="{{isVip}}">
+          <text class="vip-icon">👑</text>
+          <text>VIP会员</text>
+        </view>
+        <view class="user-badge free" wx:else>
+          <text>免费用户</text>
+        </view>
       </view>
-    </view>
+    </block>
+    <!-- 未登录状态 -->
+    <block wx:else>
+      <view class="user-avatar login-avatar">
+        <text class="avatar-placeholder">👤</text>
+      </view>
+      <view class="user-info">
+        <text class="user-name login-text">点击登录</text>
+        <view class="user-badge free">
+          <text>登录后享受更多功能</text>
+        </view>
+      </view>
+    </block>
   </view>
 
   <!-- 使用统计 -->
-  <view class="stats-card">
+  <!-- <view class="stats-card">
     <view class="stat-item">
       <text class="stat-value">{{usage.today}}</text>
       <text class="stat-label">今日剩余</text>
@@ -33,16 +48,16 @@
       <text class="stat-value">{{savedCount}}</text>
       <text class="stat-label">成功保存</text>
     </view>
-  </view>
+  </view>-->
 
   <!-- VIP 推广 -->
-  <view class="vip-banner" wx:if="{{!isVip}}" bindtap="goVip">
+  <!-- <view class="vip-banner" wx:if="{{!isVip}}" bindtap="goVip">
     <view class="vip-content">
       <text class="vip-title">🌟 开通 VIP 会员</text>
       <text class="vip-desc">无限次数 · 高清导出 · 优先处理</text>
     </view>
     <text class="vip-btn">立即开通</text>
-  </view>
+  </view> --> 
 
   <!-- 功能列表 -->
   <view class="menu-list">

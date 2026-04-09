@@ -1,8 +1,8 @@
 {
   "pages": [
-    "pages/index/index",
     "pages/home/home",
     "pages/pic/pic",
+    "pages/index/index",
     "pages/video/video",
     "pages/profile/profile",
     "components/mask-canvas/mask-canvas"
@@ -13,6 +13,26 @@
     "navigationBarTitleText": "智能内容疏解",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f5f7fa"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#07c160",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "images/home.png",
+        "selectedIconPath": "images/home_active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "images/profile.png",
+        "selectedIconPath": "images/profile_active.png"
+      }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
