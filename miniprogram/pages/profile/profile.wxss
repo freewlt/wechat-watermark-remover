@@ -24,9 +24,31 @@
   margin-right: 30rpx;
 }
 
-.user-avatar open-data {
+.user-avatar image {
   width: 100%;
   height: 100%;
+}
+
+.user-avatar.open-data {
+  width: 100%;
+  height: 100%;
+}
+
+/* 登录状态头像 */
+.login-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.2);
+}
+
+.avatar-placeholder {
+  font-size: 60rpx;
+}
+
+/* 登录文字 */
+.login-text {
+  color: #fff;
 }
 
 .user-info {

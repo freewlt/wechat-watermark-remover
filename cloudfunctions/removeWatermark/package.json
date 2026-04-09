@@ -1,6 +1,6 @@
 {
   "name": "removeWatermark",
-  "version": "1.0.0",
+  "version": "4.0.0",
   "description": "图片去水印云函数",
   "main": "index.js",
   "dependencies": {
