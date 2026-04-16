@@ -9,7 +9,7 @@
     <view class="step-line {{step >= 2 ? 'active' : ''}}"></view>
     <view class="step {{step >= 2 ? 'active' : ''}}">
       <view class="step-num">2</view>
-      <text>自动识别/涂抹水印</text>
+      <text>涂抹水印</text>
     </view>
     <view class="step-line {{step >= 3 ? 'active' : ''}}"></view>
     <view class="step {{step >= 3 ? 'active' : ''}}">
@@ -27,7 +27,7 @@
         <text class="upload-tip">支持 JPG、PNG 格式</text>
       </view>
     </view>
-    
+
     <view class="quick-actions">
       <button class="quick-btn" bindtap="chooseImage" data-source="camera">
         <text>📷 拍照</text>
@@ -39,72 +39,75 @@
   </view>
 
   <!-- 步骤2: 涂抹编辑 -->
-  <scroll-view class="step-content scrollable" wx:if="{{step === 2}}" scroll-y="true">
-    <view class="canvas-container" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;">
-      <!-- 原图显示 -->
-      <image
-        class="preview-image"
-        src="{{originalImage}}"
-        mode="aspectFit"
-        style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
-      />
-
-      <!-- 涂抹层 -->
-      <mask-canvas
-        id="maskCanvas"
-        width="{{canvasWidth}}"
-        height="{{canvasHeight}}"
-        brushSize="{{brushSize}}"
-        brushColor="rgba(255, 0, 0, 0.5)"
-        bind:ready="onMaskCanvasReady"
-        bind:change="onMaskChange"
-      />
-    </view>
-
-    <!-- 工具栏 -->
-    <view class="toolbar">
-      <view class="tips-bar">
-        <text class="tips-text">💡 提示：直接点击"开始处理"自动识别水印，或涂抹水印区域后处理</text>
-      </view>
-      <view class="tool-group">
-        <text class="tool-label">画笔大小</text>
-        <slider 
-          class="brush-slider"
-          min="10" 
-          max="80" 
-          value="{{brushSize}}" 
-          block-size="24"
-          activeColor="#07c160"
-          bindchange="onBrushSizeChange"
+  <view wx:if="{{step === 2}}" style="display: flex; flex-direction: column; height: calc(100vh - 120rpx);">
+    <scroll-view class="step-content scrollable" scroll-y="{{!isDrawing}}" style="flex: 1; overflow: hidden;">
+      <view class="canvas-container" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;">
+        <!-- 原图显示 -->
+        <image
+          class="preview-image"
+          src="{{originalImage}}"
+          mode="aspectFit"
+          style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
         />
-        <text class="brush-value">{{brushSize}}px</text>
+        <!-- 涂抹层 -->
+        <mask-canvas
+          id="maskCanvas"
+          width="{{canvasWidth}}"
+          height="{{canvasHeight}}"
+          brushSize="{{brushSize}}"
+          brushColor="rgba(255, 0, 0, 0.5)"
+          bind:ready="onMaskCanvasReady"
+          bind:change="onMaskChange"
+          bind:drawing="onMaskDrawing"
+        />
       </view>
-      
-      <view class="tool-actions">
-        <button class="tool-btn" bindtap="undo" disabled="{{undoStack.length === 0}}">
-          <text>↩️ 撤销</text>
-        </button>
-        <button class="tool-btn" bindtap="clearMask">
-          <text>🗑️ 清空</text>
-        </button>
-        <button class="tool-btn" bindtap="toggleMask">
-          <text>{{showMask ? '🙈' : '🙉'}} 预览</text>
-        </button>
+
+      <!-- 工具栏 -->
+      <view class="toolbar">
+        <view class="tips-bar">
+          <text class="tips-text">✏️ 涂抹水印区域后点"开始修复"；或点"自动去水印"一键去除半透明平铺水印</text>
+        </view>
+        <view class="tool-group">
+          <text class="tool-label">画笔大小</text>
+          <slider
+            class="brush-slider"
+            min="10"
+            max="80"
+            value="{{brushSize}}"
+            block-size="24"
+            activeColor="#07c160"
+            bindchange="onBrushSizeChange"
+          />
+          <text class="brush-value">{{brushSize}}px</text>
+        </view>
+        <view class="tool-actions">
+          <button class="tool-btn" bindtap="undo">
+            <text>↩️ 撤销</text>
+          </button>
+          <button class="tool-btn" bindtap="clearMask">
+            <text>🗑️ 清空</text>
+          </button>
+        </view>
       </view>
-    </view>
+    </scroll-view>
 
     <view class="action-bar">
       <button class="btn btn-secondary" bindtap="resetImage">重新选择</button>
-      <button class="btn btn-primary" bindtap="processImage">
-        {{processing ? '处理中...' : '开始处理'}}
+      <button class="btn btn-outline-purple" bindtap="autoRemoveWatermark" disabled="{{processing}}">
+        🪄 自动去水印
+      </button>
+      <button class="btn btn-primary" bindtap="processRepair" disabled="{{processing || !hasMask}}">
+        ✏️ 开始修复
       </button>
     </view>
-  </scroll-view>
+  </view>
+
+  <!-- 离屏合成 canvas（隐藏，用于本地像素修复） -->
+  <canvas type="2d" id="offscreen-canvas" style="position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px;"></canvas>
 
   <!-- 步骤3: 结果展示 -->
   <scroll-view class="step-content scrollable" wx:if="{{step === 3}}" scroll-y="true">
     <view class="result-container">
-      <!-- 对比模式 -->
       <view class="compare-wrapper" wx:if="{{compareMode}}">
         <view class="compare-image original">
           <image src="{{originalImage}}" mode="widthFix"/>
@@ -115,12 +118,9 @@
           <text class="compare-label">处理后</text>
         </view>
       </view>
-
-      <!-- 单图模式 -->
       <view class="single-result" wx:else>
         <image src="{{resultImage}}" mode="widthFix" bindtap="previewImage"/>
       </view>
-
       <view class="view-toggle" bindtap="toggleCompare">
         <text>{{compareMode ? '👁️ 单图查看' : '👀 对比查看'}}</text>
       </view>
@@ -142,11 +142,11 @@
     </view>
     <view class="help-step">
       <text class="num">2</text>
-      <text>用自动识别或手指涂抹水印区域（红色标记）</text>
+      <text>手指涂抹水印区域（红色标记）</text>
     </view>
     <view class="help-step">
       <text class="num">3</text>
-      <text>点击处理，AI自动修复背景</text>
+      <text>点击处理，本地 AI 自动修复，无需网络</text>
     </view>
   </view>
 </view>

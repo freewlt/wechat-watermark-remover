@@ -1,6 +1,6 @@
 /* pages/pic/pic.wxss */
 .container {
-  padding: 20rpx 30rpx;
+  padding: 20rpx 0;
   min-height: 100vh;
   box-sizing: border-box;
   padding-bottom: 160rpx; /* 为底部固定按钮留出空间 */
@@ -65,6 +65,8 @@
 /* 步骤内容区域 */
 .step-content {
   width: 100%;
+  padding: 0 30rpx;
+  box-sizing: border-box;
 }
 
 .step-content.scrollable {
@@ -230,10 +232,18 @@ mask-canvas {
   opacity: 0.5;
 }
 
+/* 自动去水印按钮（底部栏紫色） */
+.btn-outline-purple {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  font-size: 26rpx;
+}
+
 /* 操作栏 */
 .action-bar {
   display: flex;
-  gap: 20rpx;
+  gap: 16rpx;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -243,10 +253,6 @@ mask-canvas {
   background: #fff;
   box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.05);
   z-index: 100;
-}
-
-.action-bar .btn {
-  flex: 1;
 }
 
 /* 结果区域 */

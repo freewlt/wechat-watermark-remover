@@ -1,206 +1,149 @@
-const cloud = require('wx-server-sdk');
-const axios = require('axios');
+const cloud = require('wx-server-sdk')
+const https = require('https')
+const http = require('http')
 
-cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
-// 平台检测
-function detectPlatform(url) {
-  if (/douyin|iesdouyin/.test(url)) return 'douyin';
-  if (/kuaishou|chenzhongtech/.test(url)) return 'kuaishou';
-  if (/xiaohongshu|xhslink/.test(url)) return 'xiaohongshu';
-  if (/bilibili|b23\.tv/.test(url)) return 'bilibili';
-  if (/weibo/.test(url)) return 'weibo';
-  return 'unknown';
+/**
+ * 发起 HTTP 请求，自动跟随重定向（最多10次）
+ */
+function request(url, options, redirectCount) {
+  options = options || {}
+  redirectCount = redirectCount || 0
+  return new Promise(function(resolve, reject) {
+    if (redirectCount > 10) return reject(new Error('重定向次数过多'))
+
+    const lib = url.startsWith('https') ? https : http
+    const req = lib.get(url, {
+      headers: Object.assign({
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        'Referer': 'https://www.douyin.com/'
+      }, options.headers || {}),
+      timeout: 15000
+    }, function(res) {
+      if ([301, 302, 303, 307, 308].indexOf(res.statusCode) !== -1) {
+        const location = res.headers['location']
+        if (!location) return reject(new Error('重定向无目标地址'))
+        let nextUrl = location
+        if (location.startsWith('/')) {
+          const idx = url.indexOf('/', url.indexOf('//') + 2)
+          const base = idx !== -1 ? url.slice(0, idx) : url
+          nextUrl = base + location
+        }
+        res.resume()
+        return resolve(request(nextUrl, options, redirectCount + 1))
+      }
+      let data = ''
+      res.on('data', function(chunk) { data += chunk })
+      res.on('end', function() {
+        resolve({ statusCode: res.statusCode, body: data, headers: res.headers, finalUrl: url })
+      })
+    })
+    req.on('error', reject)
+    req.on('timeout', function() { req.destroy(); reject(new Error('请求超时')) })
+  })
 }
 
-// 获取平台中文名
-function getPlatformName(platform) {
-  const names = {
-    douyin: '抖音',
-    kuaishou: '快手',
-    xiaohongshu: '小红书',
-    bilibili: 'B站',
-    weibo: '微博',
-    unknown: '未知平台'
-  };
-  return names[platform] || '未知平台';
+/**
+ * 从 URL 中提取抖音 video_id
+ */
+function extractDouyinVideoId(url) {
+  const match = url.match(/\/video\/(\d+)/)
+  if (match) return match[1]
+  const modalMatch = url.match(/modal_id=(\d+)/)
+  if (modalMatch) return modalMatch[1]
+  return null
 }
 
-exports.main = async (event, context) => {
-  const { url } = event;
+/**
+ * 解析抖音视频
+ */
+async function parseDouyin(url) {
+  console.log('开始解析抖音:', url)
 
-  if (!url || !url.includes('http')) {
-    return {
-      code: -1,
-      msg: '请输入有效的视频链接'
-    };
+  const expanded = await request(url)
+  const finalUrl = expanded.finalUrl
+  console.log('最终 URL:', finalUrl)
+
+  let videoId = extractDouyinVideoId(finalUrl)
+  if (!videoId) videoId = extractDouyinVideoId(url)
+  if (!videoId) throw new Error('无法识别抖音视频ID，请确认链接有效')
+
+  console.log('video_id:', videoId)
+
+  const apiUrl = 'https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids=' + videoId
+  const res = await request(apiUrl)
+  console.log('API 响应状态:', res.statusCode)
+
+  let data
+  try {
+    data = JSON.parse(res.body)
+  } catch (e) {
+    throw new Error('抖音 API 响应解析失败')
   }
 
-  const platform = detectPlatform(url);
-  const platformName = getPlatformName(platform);
+  const item = data.item_list && data.item_list[0]
+  if (!item) throw new Error('未获取到视频信息，接口可能已更新')
+
+  const videoUrlRaw = (item.video && item.video.play_addr && item.video.play_addr.url_list && item.video.play_addr.url_list[0]) || ''
+  const videoUrl = videoUrlRaw.replace('playwm', 'play')
+  const cover = (item.video && item.video.cover && item.video.cover.url_list && item.video.cover.url_list[0]) || ''
+
+  return {
+    platform: '抖音',
+    title: item.desc || '抖音视频',
+    cover: cover,
+    videoUrl: videoUrl,
+    author: (item.author && item.author.nickname) || '',
+    url: url
+  }
+}
+
+/**
+ * 解析微博视频
+ */
+async function parseWeibo(url) {
+  const res = await request(url, { headers: { 'Referer': 'https://weibo.com/' } })
+
+  const mp4Match = res.body.match(/"url":"(https?:[^"]+\.mp4[^"]*)"/)
+  if (!mp4Match) throw new Error('未找到微博视频地址')
+
+  const videoUrl = mp4Match[1].replace(/\\u002F/g, '/').replace(/\\/g, '')
+  const titleMatch = res.body.match(/<title[^>]*>([^<]+)<\/title>/)
+  const title = titleMatch ? titleMatch[1].replace(' - 微博', '').trim() : '微博视频'
+
+  return {
+    platform: '微博',
+    title: title,
+    cover: '',
+    videoUrl: videoUrl,
+    author: '',
+    url: url
+  }
+}
+
+/**
+ * 判断平台并路由解析
+ */
+async function parseVideo(url) {
+  if (url.indexOf('douyin.com') !== -1 || url.indexOf('iesdouyin.com') !== -1) {
+    return await parseDouyin(url)
+  } else if (url.indexOf('weibo.com') !== -1 || url.indexOf('weibo.cn') !== -1 || url.indexOf('t.cn') !== -1) {
+    return await parseWeibo(url)
+  } else {
+    throw new Error('暂不支持该平台，目前支持抖音、微博')
+  }
+}
+
+exports.main = async function(event) {
+  const url = event.url
+  if (!url) return { code: -1, msg: '缺少 url 参数' }
 
   try {
-    console.log(`解析 ${platformName} 视频:`, url);
-
-    // 尝试使用免费的解析 API
-    let videoUrl = null;
-    let title = '';
-    let cover = '';
-
-    // 尝试多个解析 API
-    const apis = [
-      // API 1: 抖音解析
-      async () => {
-        if (platform !== 'douyin') return null;
-        try {
-          const response = await axios.get('https://api.oick.cn/douyin/api.php', {
-            params: { url: url },
-            timeout: 15000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-          });
-          console.log('API 1 响应:', response.data);
-          if (response.data && response.data.video) {
-            return {
-              videoUrl: response.data.video,
-              title: response.data.title || '',
-              cover: response.data.cover || ''
-            };
-          }
-          return null;
-        } catch (e) {
-          console.log('API 1 失败:', e.message);
-          return null;
-        }
-      },
-      // API 2: 备用解析
-      async () => {
-        if (platform !== 'douyin') return null;
-        try {
-          const response = await axios.get('https://www.iesdouyin.com/web/api/v2/aweme/iteminfo', {
-            params: { item_ids: extractVideoId(url) },
-            timeout: 15000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15'
-            }
-          });
-          console.log('API 2 响应:', response.data);
-          if (response.data && response.data.item_list && response.data.item_list[0]) {
-            const item = response.data.item_list[0];
-            return {
-              videoUrl: item.video.play_addr.url_list[0],
-              title: item.desc || '',
-              cover: item.video.cover.url_list[0]
-            };
-          }
-          return null;
-        } catch (e) {
-          console.log('API 2 失败:', e.message);
-          return null;
-        }
-      },
-      // API 3: 使用抖音官方接口
-      async () => {
-        if (platform !== 'douyin') return null;
-        try {
-          // 先获取重定向后的 URL
-          const redirectRes = await axios.head(url, {
-            timeout: 10000,
-            maxRedirects: 0,
-            validateStatus: (status) => status >= 200 && status < 400
-          }).catch(e => e.response);
-          
-          let realUrl = url;
-          if (redirectRes && redirectRes.headers && redirectRes.headers.location) {
-            realUrl = redirectRes.headers.location;
-          }
-          
-          // 提取视频 ID
-          const matches = realUrl.match(/video\/(\d+)/);
-          if (!matches) return null;
-          
-          const videoId = matches[1];
-          
-          const response = await axios.get(`https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids=${videoId}`, {
-            timeout: 15000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1',
-              'Referer': 'https://www.iesdouyin.com/'
-            }
-          });
-          
-          console.log('API 3 响应:', JSON.stringify(response.data).substring(0, 500));
-          
-          if (response.data && response.data.item_list && response.data.item_list[0]) {
-            const item = response.data.item_list[0];
-            const videoInfo = item.video;
-            
-            return {
-              videoUrl: videoInfo.play_addr ? videoInfo.play_addr.url_list[0] : videoInfo.download_addr.url_list[0],
-              title: item.desc || '',
-              cover: videoInfo.cover.url_list[0]
-            };
-          }
-          return null;
-        } catch (e) {
-          console.log('API 3 失败:', e.message);
-          return null;
-        }
-      }
-    ];
-
-    // 依次尝试各个 API
-    for (const api of apis) {
-      const result = await api();
-      if (result && result.videoUrl) {
-        videoUrl = result.videoUrl;
-        title = result.title;
-        cover = result.cover;
-        console.log('API 成功:', result.videoUrl.substring(0, 100));
-        break;
-      }
-    }
-
-    // 如果所有 API 都失败了，返回演示数据
-    if (!videoUrl) {
-      return {
-        code: 0,
-        data: {
-          videoUrl: url,
-          cover: '',
-          title: `${platformName}视频`,
-          author: '未知作者',
-          platform: platformName,
-          note: '暂时不可用，请稍后重试'
-        },
-        msg: '解析成功'
-      };
-    }
-
-    return {
-      code: 0,
-      data: {
-        videoUrl: videoUrl,
-        cover: cover,
-        title: title || `${platformName}视频`,
-        author: '未知作者',
-        platform: platformName
-      },
-      msg: '解析成功'
-    };
-
-  } catch (error) {
-    console.error('视频解析失败:', error);
-    return {
-      code: -1,
-      msg: '解析失败：' + (error.message || '未知错误')
-    };
+    const data = await parseVideo(url.trim())
+    return { code: 0, data: data }
+  } catch (err) {
+    console.error('解析失败:', err)
+    return { code: -1, msg: err.message || '解析失败' }
   }
-};
-
-// 提取视频 ID
-function extractVideoId(url) {
-  const matches = url.match(/video\/(\d+)/);
-  return matches ? matches[1] : null;
 }

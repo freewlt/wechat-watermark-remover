@@ -36,19 +36,20 @@ Page({
   async parseVideo() {
     const { url } = this.data;
 
-    // 简单验证
-    if (!url.includes('http')) {
-      wx.showToast({ title: '请输入有效链接', icon: 'none' });
+    // 从文本中提取 URL（兼容抖音分享文案）
+    const urlMatch = url.match(/https?:\/\/[^\s，。！？,!?]+/);
+    if (!urlMatch) {
+      wx.showToast({ title: '未找到有效链接', icon: 'none' });
       return;
     }
+    const realUrl = urlMatch[0].trim();
 
-    this.setData({ loading: true });
+    this.setData({ loading: true, url: realUrl });
 
     try {
-      // 调用后端解析接口
       const { result } = await wx.cloud.callFunction({
         name: 'parseVideo',
-        data: { url }
+        data: { url: realUrl }
       });
 
       if (result.code === 0) {

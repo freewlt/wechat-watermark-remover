@@ -4,27 +4,28 @@ Page({
   data: {
     // 步骤控制：1选图 2编辑 3结果
     step: 1,
-    
+
     // 图片数据
     originalImage: '',
     resultImage: '',
-    
+
     // 画布尺寸
     canvasWidth: 300,
     canvasHeight: 300,
-    
+
     // 画笔设置
     brushSize: 30,
     showMask: true,
     hasMask: false,
-    
+
     // 状态
     processing: false,
     compareMode: false,
-    
+    isDrawing: false,
+
     // 撤销栈
     undoStack: [],
-    
+
     // 系统信息
     pixelRatio: 1,
     windowWidth: 375
@@ -223,6 +224,10 @@ Page({
     }
   },
 
+  onMaskDrawing(e) {
+    this.setData({ isDrawing: e.detail ? e.detail.isDrawing : false });
+  },
+
   // 获取遮罩数据（用于提交处理）
   getMaskData() {
     const maskCanvasComponent = this.selectComponent('#maskCanvas');
@@ -268,7 +273,6 @@ Page({
   undo() {
     const maskCanvasComponent = this.selectComponent('#maskCanvas');
     if (maskCanvasComponent && maskCanvasComponent.undo()) {
-      // 检查是否还有绘制内容
       const hasDrawing = maskCanvasComponent.hasDrawing();
       this.setData({ hasMask: hasDrawing });
     } else {
@@ -323,92 +327,109 @@ Page({
 
   // ========== 图片处理 ==========
 
-  async processImage() {
-    // 检查是否有涂抹内容
+  // 涂抹修复模式（需要先涂抹）
+  async processRepair() {
     const maskCanvasComponent = this.selectComponent('#maskCanvas');
-    const hasDrawing = maskCanvasComponent && maskCanvasComponent.hasDrawing();
-
-    // 如果没有涂抹，使用自动识别模式
-    const position = hasDrawing ? 'manual' : 'auto';
-
-    // 检查使用次数
-    // const usage = wx.getStorageSync('usage') || { today: 3, total: 0, lastDate: '' };
-    // const today = new Date().toDateString();
-
-    // if (usage.lastDate !== today) {
-    //   usage.today = 3;
-    //   usage.lastDate = today;
-    // }
-
-    // if (usage.today <= 0) {
-    //   wx.showModal({
-    //     title: '次数用完',
-    //     content: '今日免费次数已用完，观看广告可获得额外次数',
-    //     confirmText: '看广告',
-    //     success: (res) => {
-    //       if (res.confirm) this.watchAd();
-    //     }
-    //   });
-    //   return;
-    // }
+    if (!maskCanvasComponent || !maskCanvasComponent.hasDrawing()) {
+      wx.showToast({ title: '请先涂抹水印区域', icon: 'none' });
+      return;
+    }
 
     this.setData({ processing: true });
-    wx.showLoading({ title: hasDrawing ? '按涂抹区域处理中...' : '自动识别水印中...', mask: true });
 
+    let offscreenCanvas;
     try {
-      // 1. 上传原图到云存储
-      const uploadRes = await wx.cloud.uploadFile({
-        cloudPath: `uploads/${Date.now()}_original.jpg`,
-        filePath: this.data.originalImage
-      });
-
-      // 2. 调用云函数处理
-      // 注意：暂时不传递 maskData，因为数据量太大容易超出限制
-      // 后续如果需要精确涂抹区域处理，可以将 maskData 转换为图片再上传
-      const { result } = await wx.cloud.callFunction({
-        name: 'removeWatermark',
-        data: {
-          fileID: uploadRes.fileID,
-          position: position
-        }
-      });
-
-      if (result.code === 0) {
-        // 更新次数
-        // usage.today--;
-        // usage.total++;
-        // wx.setStorageSync('usage', usage);
-
-        this.setData({
-          resultImage: result.data.url,
-          step: 3,
-          processing: false
+      const query = this.createSelectorQuery();
+      offscreenCanvas = await new Promise((resolve, reject) => {
+        query.select('#offscreen-canvas').fields({ node: true }).exec((res) => {
+          if (res[0] && res[0].node) resolve(res[0].node);
+          else reject(new Error('离屏 canvas 获取失败'));
         });
-
-        wx.hideLoading();
-        wx.showToast({ title: '处理完成', icon: 'success' });
-      } else {
-        throw new Error(result.msg || '处理失败');
-      }
-
-    } catch (err) {
-      console.error('处理失败:', err);
-      wx.hideLoading();
-
-      let errorMsg = '处理失败';
-      if (err.errMsg && err.errMsg.includes('timeout')) {
-        errorMsg = '处理超时，请重试或选择较小的图片';
-      } else if (err.message) {
-        errorMsg = err.message;
-      }
-
-      wx.showToast({
-        title: errorMsg,
-        icon: 'none',
-        duration: 3000
       });
+    } catch (err) {
+      wx.showToast({ title: err.message || '初始化失败', icon: 'none' });
+      this.setData({ processing: false });
+      return;
+    }
+
+    wx.showLoading({ title: '修复中...', mask: true });
+    try {
+      const resultPath = await maskCanvasComponent.repairImage(
+        this.data.originalImage,
+        'fine',
+        offscreenCanvas
+      );
+      this.setData({ resultImage: resultPath, step: 3, processing: false });
+      wx.hideLoading();
+      wx.showToast({ title: '处理完成', icon: 'success' });
+    } catch (err) {
+      console.error('修复失败:', err);
+      wx.hideLoading();
+      wx.showToast({ title: err.message || '处理失败', icon: 'none', duration: 3000 });
       this.setData({ processing: false });
     }
+  },
+
+  // 自动去水印模式（无需涂抹）
+  async autoRemoveWatermark() {
+    // 先弹确认提示，说明适用场景
+    const confirmed = await new Promise((resolve) => {
+      wx.showModal({
+        title: '⚠️ 使用前请确认',
+        content: '自动去水印适合去除半透明平铺水印（如旅拍水印、心形水印）。\n\n如果图片本身有大面积白色内容（如白底文字、截图），请改用"涂抹修复"以避免误处理。\n\n是否继续？',
+        confirmText: '继续',
+        cancelText: '取消',
+        confirmColor: '#07c160',
+        success: (res) => resolve(res.confirm),
+        fail: () => resolve(false)
+      });
+    });
+    if (!confirmed) return;
+
+    const maskCanvasComponent = this.selectComponent('#maskCanvas');
+
+    this.setData({ processing: true });
+
+    let offscreenCanvas;
+    try {
+      const query = this.createSelectorQuery();
+      offscreenCanvas = await new Promise((resolve, reject) => {
+        query.select('#offscreen-canvas').fields({ node: true }).exec((res) => {
+          if (res[0] && res[0].node) resolve(res[0].node);
+          else reject(new Error('离屏 canvas 获取失败'));
+        });
+      });
+    } catch (err) {
+      wx.showToast({ title: err.message || '初始化失败', icon: 'none' });
+      this.setData({ processing: false });
+      return;
+    }
+
+    wx.showLoading({ title: '自动去水印中...', mask: true });
+    try {
+      const resultPath = await maskCanvasComponent.removeOverlayWatermark(
+        this.data.originalImage,
+        offscreenCanvas,
+        { detectKernel: 60, brightThreshold: 20, satLoss: 18, dilateRadius: 2, fillRadius: 8 }
+      );
+      this.setData({ resultImage: resultPath, step: 3, processing: false });
+      wx.hideLoading();
+      wx.showToast({ title: '去水印完成', icon: 'success' });
+    } catch (err) {
+      console.error('去水印失败:', err);
+      wx.hideLoading();
+      wx.showToast({ title: err.message || '去水印失败', icon: 'none', duration: 3000 });
+      this.setData({ processing: false });
+    }
+  },
+
+  // 兼容旧入口（保留不删）
+  async processImage() {
+    const maskCanvasComponent = this.selectComponent('#maskCanvas');
+    if (maskCanvasComponent && maskCanvasComponent.hasDrawing()) {
+      return this.processRepair();
+    }
+    return this.autoRemoveWatermark();
   },
 
   // watchAd() {
@@ -449,52 +470,35 @@ Page({
   },
 
   saveImage() {
-    const { resultImage } = this.data
-    
+    const { resultImage } = this.data;
+
     if (!resultImage) {
-      wx.showToast({ title: '没有可保存的图片', icon: 'none' })
-      return
+      wx.showToast({ title: '没有可保存的图片', icon: 'none' });
+      return;
     }
-    
-    wx.showLoading({ title: '保存中...' })
-    
-    // 下载图片到本地
-    wx.downloadFile({
-      url: resultImage,
-      success: (res) => {
-        if (res.statusCode === 200) {
-          wx.saveImageToPhotosAlbum({
-            filePath: res.tempFilePath,
-            success: () => {
-              wx.hideLoading()
-              wx.showToast({ title: '保存成功', icon: 'success' })
-            },
-            fail: (err) => {
-              wx.hideLoading()
-              console.error('保存失败:', err)
-              // 如果用户拒绝授权，提示手动保存
-              if (err.errMsg && err.errMsg.includes('auth deny')) {
-                wx.showModal({
-                  title: '提示',
-                  content: '需要授权保存到相册，请在设置中开启权限',
-                  showCancel: false
-                })
-              } else {
-                wx.showToast({ title: '保存失败', icon: 'none' })
-              }
-            }
-          })
-        } else {
-          wx.hideLoading()
-          wx.showToast({ title: '下载失败', icon: 'none' })
-        }
+
+    wx.showLoading({ title: '保存中...' });
+
+    wx.saveImageToPhotosAlbum({
+      filePath: resultImage,
+      success: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '保存成功', icon: 'success' });
       },
       fail: (err) => {
-        wx.hideLoading()
-        console.error('下载失败:', err)
-        wx.showToast({ title: '下载失败', icon: 'none' })
+        wx.hideLoading();
+        console.error('保存失败:', err);
+        if (err.errMsg && err.errMsg.includes('auth deny')) {
+          wx.showModal({
+            title: '需要授权',
+            content: '请在设置中开启相册写入权限',
+            showCancel: false
+          });
+        } else {
+          wx.showToast({ title: '保存失败', icon: 'none' });
+        }
       }
-    })
+    });
   },
 
   processNew() {

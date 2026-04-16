@@ -1,12 +1,12 @@
 <!--components/mask-canvas/mask-canvas.wxml-->
 <view class="mask-canvas-wrapper" style="width: {{width}}px; height: {{height}}px;">
-  <canvas 
-    type="2d" 
+  <canvas
+    type="2d"
     id="mask-layer"
     class="mask-layer"
     style="width: {{width}}px; height: {{height}}px;"
     bindtouchstart="onTouchStart"
-    bindtouchmove="onTouchMove"
+    catchtouchmove="onTouchMove"
     bindtouchend="onTouchEnd"
     bindtouchcancel="onTouchCancel"
   />

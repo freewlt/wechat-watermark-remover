@@ -36,10 +36,5 @@
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "permission": {
-    "scope.writePhotosAlbum": {
-      "desc": "保存图片到相册"
-    }
-  },
   "cloud": true
 }
